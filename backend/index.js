@@ -726,6 +726,19 @@ app.use((err, req, res, next) => {
   return sendError(res, status, status === 500 ? 'Unexpected server error' : err.message);
 });
 
+// Serve frontend
+const frontendDist = path.join(__dirname, '..', 'frontend', 'dist');
+if (fs.existsSync(frontendDist)) {
+  app.use(express.static(frontendDist));
+  app.get('*', (req, res) => {
+    res.sendFile(path.join(frontendDist, 'index.html'));
+  });
+} else {
+  app.get('/', (req, res) => {
+    res.send('TeamHub API is running. Frontend build not found.');
+  });
+}
+
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`TeamHub API running on port ${PORT}`);
 });
