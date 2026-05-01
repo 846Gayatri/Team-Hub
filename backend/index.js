@@ -388,7 +388,8 @@ function isOverdue(task) {
 }
 
 app.get('/health', (req, res) => {
-  res.json({ ok: true, service: 'team-hub-api', database: 'sqlite' });
+  res.set('Cache-Control', 'no-cache, no-store, must-revalidate');
+  res.status(200).json({ ok: true, service: 'team-hub-api', database: 'sqlite' });
 });
 
 app.post('/api/v1/auth/signup', asyncRoute(async (req, res) => {
