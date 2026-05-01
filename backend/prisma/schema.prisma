@@ -3,8 +3,25 @@ generator client {
 }
 
 datasource db {
-  provider = "sqlite"
-  url      = "file:./dev.db"
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  ADMIN
+  MEMBER
+}
+
+enum TaskStatus {
+  TODO
+  IN_PROGRESS
+  DONE
+}
+
+enum TaskPriority {
+  LOW
+  MEDIUM
+  HIGH
 }
 
 model User {
@@ -12,11 +29,13 @@ model User {
   email     String   @unique
   password  String
   name      String
-  role      String   @default("MEMBER")
+  role      Role     @default(MEMBER)
   createdAt DateTime @default(now())
-  
-  projects  Project[]
-  tasks     Task[]
+  updatedAt DateTime @updatedAt
+
+  ownedProjects Project[]       @relation("OwnedProjects")
+  memberships   ProjectMember[]
+  assignedTasks Task[]          @relation("AssignedTasks")
 }
 
 model Project {
@@ -24,23 +43,41 @@ model Project {
   name        String
   description String?
   createdAt   DateTime @default(now())
-  
-  userId      Int
-  user        User     @relation(fields: [userId], references: [id])
-  tasks       Task[]
+  updatedAt   DateTime @updatedAt
+
+  ownerId Int
+  owner   User @relation("OwnedProjects", fields: [ownerId], references: [id])
+
+  members ProjectMember[]
+  tasks   Task[]
+}
+
+model ProjectMember {
+  id        Int      @id @default(autoincrement())
+  createdAt DateTime @default(now())
+
+  projectId Int
+  project   Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  userId Int
+  user   User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([projectId, userId])
 }
 
 model Task {
-  id          Int      @id @default(autoincrement())
+  id          Int          @id @default(autoincrement())
   title       String
   description String?
-  status      String   @default("TODO")
+  status      TaskStatus   @default(TODO)
+  priority    TaskPriority @default(MEDIUM)
   dueDate     DateTime?
-  createdAt   DateTime @default(now())
-  
-  projectId   Int
-  project     Project  @relation(fields: [projectId], references: [id])
-  
-  assigneeId  Int?
-  assignee    User?    @relation(fields: [assigneeId], references: [id])
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+
+  projectId Int
+  project   Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  assigneeId Int?
+  assignee   User? @relation("AssignedTasks", fields: [assigneeId], references: [id], onDelete: SetNull)
 }
