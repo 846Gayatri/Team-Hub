@@ -726,6 +726,6 @@ app.use((err, req, res, next) => {
   return sendError(res, status, status === 500 ? 'Unexpected server error' : err.message);
 });
 
-app.listen(PORT, () => {
+app.listen(PORT, '0.0.0.0', () => {
   console.log(`TeamHub API running on port ${PORT}`);
 });
