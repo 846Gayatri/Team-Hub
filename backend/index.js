@@ -437,6 +437,38 @@ app.post('/api/v1/auth/login', asyncRoute(async (req, res) => {
   res.json({ token: createToken(user), user });
 }));
 
+app.post('/api/v1/auth/google', asyncRoute(async (req, res) => {
+  const { credential } = req.body;
+  if (!credential) return sendError(res, 400, 'Google credential required');
+
+  const tokenRes = await fetch(`https://oauth2.googleapis.com/tokeninfo?id_token=${encodeURIComponent(credential)}`);
+  const tokenData = await tokenRes.json();
+
+  if (!tokenRes.ok || tokenData.error) {
+    return sendError(res, 401, 'Invalid Google credential');
+  }
+
+  const email = (tokenData.email || '').toLowerCase();
+  if (!email || !tokenData.email_verified) {
+    return sendError(res, 400, 'Google account email not verified');
+  }
+
+  const name = tokenData.name || email.split('@')[0];
+  const timestamp = now();
+
+  let row = db.prepare('SELECT * FROM users WHERE email = ?').get(email);
+  if (!row) {
+    const result = db.prepare(`
+      INSERT INTO users (email, password, name, role, createdAt, updatedAt)
+      VALUES (?, ?, ?, ?, ?, ?)
+    `).run(email, '', name, 'MEMBER', timestamp, timestamp);
+    row = getUser(Number(result.lastInsertRowid));
+  }
+
+  const user = publicUser(row);
+  res.json({ token: createToken(user), user });
+}));
+
 app.get('/api/v1/auth/me', authenticate, (req, res) => {
   const user = publicUser(getUser(req.user.id));
   if (!user) return sendError(res, 404, 'User not found');

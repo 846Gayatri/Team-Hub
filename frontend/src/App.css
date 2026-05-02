@@ -82,6 +82,22 @@ button {
   margin: 22px 0 32px;
 }
 
+.role-cards-label {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  max-width: 580px;
+  margin-bottom: 10px;
+}
+
+.role-cards-label span {
+  font-size: 11px;
+  font-weight: 900;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
 .role-cards {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -148,6 +164,53 @@ button {
   border-radius: var(--radius);
   background: rgba(9, 20, 35, 0.9);
   box-shadow: var(--shadow);
+}
+
+.google-btn-wrap {
+  width: 100%;
+  display: flex;
+  justify-content: center;
+  margin-bottom: 4px;
+  min-height: 44px;
+}
+
+.google-btn-mock {
+  width: 100%;
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  border-radius: var(--radius);
+  background: #1f2937;
+  border: 1px solid rgba(255,255,255,0.12);
+  color: rgba(255,255,255,0.4);
+  font-weight: 600;
+  font-size: 14px;
+  cursor: not-allowed;
+  opacity: 0.6;
+  margin-bottom: 4px;
+}
+
+.auth-divider {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 14px 0;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.auth-divider::before,
+.auth-divider::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: var(--border);
+}
+
+.auth-divider span {
+  flex-shrink: 0;
 }
 
 .segmented,
