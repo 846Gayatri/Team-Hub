@@ -1,5 +1,6 @@
 require('dotenv').config();
 
+const crypto = require('crypto');
 const fs = require('fs');
 const path = require('path');
 
@@ -91,6 +92,16 @@ db.exec(`
     type TEXT NOT NULL DEFAULT 'comment',
     createdAt TEXT NOT NULL,
     FOREIGN KEY (taskId) REFERENCES tasks(id) ON DELETE CASCADE,
+    FOREIGN KEY (userId) REFERENCES users(id) ON DELETE CASCADE
+  );
+
+  CREATE TABLE IF NOT EXISTS password_reset_tokens (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    userId INTEGER NOT NULL,
+    token TEXT NOT NULL UNIQUE,
+    expiresAt TEXT NOT NULL,
+    usedAt TEXT,
+    createdAt TEXT NOT NULL,
     FOREIGN KEY (userId) REFERENCES users(id) ON DELETE CASCADE
   );
 `);
@@ -505,6 +516,97 @@ app.patch('/api/v1/auth/profile', authenticate, asyncRoute(async (req, res) => {
 
   const user = publicUser(getUser(req.user.id));
   res.json({ user });
+}));
+
+async function sendResetEmail(toEmail, toName, resetUrl) {
+  const apiKey = process.env.RESEND_API_KEY;
+  if (!apiKey) {
+    console.warn('[reset-email] RESEND_API_KEY not set — skipping email send');
+    return { skipped: true };
+  }
+  const html = `
+    <div style="font-family:system-ui,sans-serif;max-width:480px;margin:0 auto;padding:32px 24px;background:#0f172a;color:#e2e8f0;border-radius:12px;">
+      <div style="margin-bottom:24px;">
+        <span style="background:#4f46e5;color:#fff;font-size:13px;font-weight:700;padding:4px 12px;border-radius:20px;letter-spacing:0.5px;">TeamHub</span>
+      </div>
+      <h2 style="font-size:22px;font-weight:700;color:#f8fafc;margin:0 0 8px;">Reset your password</h2>
+      <p style="color:#94a3b8;margin:0 0 24px;">Hi ${toName}, we received a request to reset your TeamHub password. Click the button below to choose a new one.</p>
+      <a href="${resetUrl}" style="display:inline-block;background:linear-gradient(135deg,#4f46e5,#7c3aed);color:#fff;font-weight:700;font-size:15px;padding:13px 28px;border-radius:8px;text-decoration:none;margin-bottom:24px;">Reset password</a>
+      <p style="color:#64748b;font-size:13px;margin:0;">This link expires in <strong style="color:#94a3b8;">1 hour</strong>. If you didn't request a reset, you can safely ignore this email.</p>
+      <hr style="border:none;border-top:1px solid #1e293b;margin:24px 0 0;" />
+      <p style="color:#475569;font-size:12px;margin:12px 0 0;">TeamHub — Project delivery &amp; team management</p>
+    </div>
+  `;
+  const res = await fetch('https://api.resend.com/emails', {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${apiKey}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      from: 'TeamHub <onboarding@resend.dev>',
+      to: [toEmail],
+      subject: 'Reset your TeamHub password',
+      html,
+    }),
+  });
+  const json = await res.json();
+  if (!res.ok) throw new Error(json.message || 'Email send failed');
+  return json;
+}
+
+app.post('/api/v1/auth/forgot-password', asyncRoute(async (req, res) => {
+  const email = String(req.body.email || '').toLowerCase().trim();
+  if (!email) return sendError(res, 400, 'Email is required');
+
+  const user = db.prepare('SELECT * FROM users WHERE email = ?').get(email);
+  if (!user || !user.password) {
+    return res.json({ ok: true });
+  }
+
+  db.prepare('DELETE FROM password_reset_tokens WHERE userId = ? AND usedAt IS NULL').run(user.id);
+
+  const token = crypto.randomBytes(32).toString('hex');
+  const expiresAt = new Date(Date.now() + 60 * 60 * 1000).toISOString();
+  db.prepare('INSERT INTO password_reset_tokens (userId, token, expiresAt, createdAt) VALUES (?, ?, ?, ?)')
+    .run(user.id, token, expiresAt, now());
+
+  const appUrl = process.env.APP_URL || `https://${process.env.REPL_SLUG}--${process.env.REPL_OWNER}.replit.app`;
+  const resetUrl = `${appUrl}/?reset_token=${token}`;
+
+  try {
+    const result = await sendResetEmail(user.email, user.name, resetUrl);
+    if (result.skipped) {
+      return res.json({ ok: true, devResetUrl: resetUrl });
+    }
+  } catch (err) {
+    console.error('[reset-email] send error:', err.message);
+    return sendError(res, 500, 'Could not send reset email. Please try again later.');
+  }
+
+  res.json({ ok: true });
+}));
+
+app.post('/api/v1/auth/reset-password', asyncRoute(async (req, res) => {
+  const token = String(req.body.token || '').trim();
+  const newPassword = String(req.body.password || '');
+
+  if (!token) return sendError(res, 400, 'Reset token is required');
+  if (newPassword.length < 6) return sendError(res, 400, 'Password must be at least 6 characters');
+
+  const row = db.prepare('SELECT * FROM password_reset_tokens WHERE token = ? AND usedAt IS NULL').get(token);
+  if (!row) return sendError(res, 400, 'Invalid or expired reset link');
+  if (new Date(row.expiresAt) < new Date()) {
+    db.prepare('DELETE FROM password_reset_tokens WHERE id = ?').run(row.id);
+    return sendError(res, 400, 'This reset link has expired. Please request a new one.');
+  }
+
+  const passwordHash = await bcrypt.hash(newPassword, 12);
+  const timestamp = now();
+  db.prepare('UPDATE users SET password = ?, updatedAt = ? WHERE id = ?').run(passwordHash, timestamp, row.userId);
+  db.prepare('UPDATE password_reset_tokens SET usedAt = ? WHERE id = ?').run(timestamp, row.id);
+
+  res.json({ ok: true, message: 'Password reset successfully. You can now log in.' });
 }));
 
 app.get('/api/v1/users', authenticate, requireAdmin, (req, res) => {

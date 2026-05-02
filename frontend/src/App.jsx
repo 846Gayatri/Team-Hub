@@ -16,12 +16,14 @@ import {
   Eye,
   FileCheck,
   FolderKanban,
+  KeyRound,
   LayoutDashboard,
   LayoutGrid,
   LayoutList,
   LoaderCircle,
   LogIn,
   LogOut,
+  Mail,
   Menu,
   MessageSquare,
   Pencil,
@@ -510,10 +512,12 @@ function GoogleIcon() {
   );
 }
 
-function AuthScreen({ onAuth }) {
-  const [mode, setMode] = useState("login");
+function AuthScreen({ onAuth, initialResetToken }) {
+  const [mode, setMode] = useState(initialResetToken ? "reset" : "login");
   const [form, setForm] = useState({ name: "", email: "", password: "", role: "MEMBER" });
+  const [resetToken] = useState(initialResetToken || "");
   const [error, setError] = useState("");
+  const [success, setSuccess] = useState("");
   const [loading, setLoading] = useState(false);
   const googleBtnRef = useRef(null);
   const googleInitRef = useRef(false);
@@ -524,6 +528,7 @@ function AuthScreen({ onAuth }) {
   const switchMode = (next) => {
     setMode(next);
     setError("");
+    setSuccess("");
     setForm((f) => ({ ...f, password: "" }));
   };
 
@@ -598,6 +603,122 @@ function AuthScreen({ onAuth }) {
     } finally {
       setLoading(false);
     }
+  }
+
+  async function submitForgot(event) {
+    event.preventDefault();
+    setError("");
+    setSuccess("");
+    setLoading(true);
+    try {
+      const res = await api.post("/auth/forgot-password", { email: form.email });
+      if (res.data.devResetUrl) {
+        setSuccess(`No email service configured. Use this link to reset:\n${res.data.devResetUrl}`);
+      } else {
+        setSuccess("If that email exists, a reset link has been sent. Check your inbox (and spam).");
+      }
+    } catch (err) {
+      setError(err.response?.data?.error || "Could not send reset email");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function submitReset(event) {
+    event.preventDefault();
+    setError("");
+    setLoading(true);
+    try {
+      await api.post("/auth/reset-password", { token: resetToken, password: form.password });
+      window.history.replaceState(null, "", "/");
+      setSuccess("Password reset successfully! You can now log in with your new password.");
+      setTimeout(() => switchMode("login"), 2000);
+    } catch (err) {
+      setError(err.response?.data?.error || "Reset failed. The link may have expired.");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  if (mode === "forgot") {
+    return (
+      <main className="auth-page">
+        <div className="auth-bg-effects">
+          <div className="auth-orb auth-orb-1" />
+          <div className="auth-orb auth-orb-2" />
+          <div className="auth-orb auth-orb-3" />
+        </div>
+        <section className="auth-panel">
+          <div className="brand-mark"><FolderKanban size={28} /></div>
+          <h1>TeamHub</h1>
+          <p className="auth-tagline">Project delivery, task ownership, and team progress — unified in one powerful workspace.</p>
+          <div className="auth-features">
+            <div className="auth-feature"><span className="auth-feature-icon"><CheckSquare size={18} /></span><div><strong>Task Management</strong><small>Create, assign, and track with JIRA-style workflows</small></div></div>
+            <div className="auth-feature"><span className="auth-feature-icon"><Users size={18} /></span><div><strong>Team Collaboration</strong><small>Role-based access for admins and members</small></div></div>
+            <div className="auth-feature"><span className="auth-feature-icon"><BarChart3 size={18} /></span><div><strong>Progress Tracking</strong><small>Real-time dashboards and project analytics</small></div></div>
+          </div>
+        </section>
+        <section className="auth-card">
+          <div className="auth-card-header">
+            <Mail size={20} />
+            <h2>Reset password</h2>
+            <p>Enter your email and we'll send you a reset link.</p>
+          </div>
+          <form onSubmit={submitForgot} className="reset-form">
+            <Field label="Email address" type="email" placeholder="you@company.com" autoComplete="email" value={form.email} onChange={(e) => set("email", e.target.value)} required />
+            {error && <div className="form-alert"><AlertTriangle size={14} />{error}</div>}
+            {success && <div className="form-success"><CheckCircle2 size={14} /><span style={{ whiteSpace: "pre-wrap" }}>{success}</span></div>}
+            <Button type="submit" style={{ width: "100%", marginTop: "6px" }} icon={Send} disabled={loading || !!success}>
+              {loading ? "Sending…" : "Send reset link"}
+            </Button>
+            <p className="auth-switch">
+              Remember your password?
+              <button type="button" onClick={() => switchMode("login")}>Sign in</button>
+            </p>
+          </form>
+        </section>
+      </main>
+    );
+  }
+
+  if (mode === "reset") {
+    return (
+      <main className="auth-page">
+        <div className="auth-bg-effects">
+          <div className="auth-orb auth-orb-1" />
+          <div className="auth-orb auth-orb-2" />
+          <div className="auth-orb auth-orb-3" />
+        </div>
+        <section className="auth-panel">
+          <div className="brand-mark"><FolderKanban size={28} /></div>
+          <h1>TeamHub</h1>
+          <p className="auth-tagline">Project delivery, task ownership, and team progress — unified in one powerful workspace.</p>
+          <div className="auth-features">
+            <div className="auth-feature"><span className="auth-feature-icon"><CheckSquare size={18} /></span><div><strong>Task Management</strong><small>Create, assign, and track with JIRA-style workflows</small></div></div>
+            <div className="auth-feature"><span className="auth-feature-icon"><Users size={18} /></span><div><strong>Team Collaboration</strong><small>Role-based access for admins and members</small></div></div>
+            <div className="auth-feature"><span className="auth-feature-icon"><BarChart3 size={18} /></span><div><strong>Progress Tracking</strong><small>Real-time dashboards and project analytics</small></div></div>
+          </div>
+        </section>
+        <section className="auth-card">
+          <div className="auth-card-header">
+            <KeyRound size={20} />
+            <h2>Choose new password</h2>
+            <p>Enter a new password for your account.</p>
+          </div>
+          <form onSubmit={submitReset} className="reset-form">
+            <Field label="New password" type="password" placeholder="Min. 6 characters" minLength={6} autoComplete="new-password" value={form.password} onChange={(e) => set("password", e.target.value)} required />
+            {error && <div className="form-alert"><AlertTriangle size={14} />{error}</div>}
+            {success && <div className="form-success"><CheckCircle2 size={14} />{success}</div>}
+            <Button type="submit" style={{ width: "100%", marginTop: "6px" }} icon={Save} disabled={loading || !!success}>
+              {loading ? "Resetting…" : "Set new password"}
+            </Button>
+            <p className="auth-switch">
+              <button type="button" onClick={() => switchMode("login")}>Back to sign in</button>
+            </p>
+          </form>
+        </section>
+      </main>
+    );
   }
 
   return (
@@ -711,6 +832,13 @@ function AuthScreen({ onAuth }) {
               {mode === "login" ? "Sign up" : "Log in"}
             </button>
           </p>
+          {mode === "login" && (
+            <p className="auth-forgot">
+              <button type="button" onClick={() => switchMode("forgot")}>
+                Forgot password?
+              </button>
+            </p>
+          )}
         </form>
       </section>
     </main>
@@ -1255,14 +1383,20 @@ function AdminOnboarding({ onCreateProject, onOpenTeam }) {
   );
 }
 
-function DashboardView({ user, dashboard, tasks, projects, onOpenTask, onOpenProject, onOpenTeam, onCreateProject }) {
+function DashboardView({ user, dashboard, tasks, projects, onOpenTask, onOpenProject, onOpenTeam, onCreateProject, dataLoaded }) {
   const stats = dashboard?.stats || {};
   const myTasks = tasks.filter((task) => task.assigneeId === user.id);
   const focusTasks = user.role === "ADMIN"
     ? tasks.filter(isOverdue).slice(0, 6)
     : myTasks.filter((task) => task.status !== "DONE").slice(0, 6);
-  const progressItems = dashboard?.projectProgress || projects.map((project) => ({ ...project, ...projectMetrics(project, tasks) }));
-  const isNewAdmin = user.role === "ADMIN" && projects.length === 0;
+  const progressItems = (dashboard?.projectProgress || []).map((p) => ({
+    ...p,
+    done: p.done ?? p.completedTasks ?? 0,
+    total: p.total ?? p.totalTasks ?? 0,
+  })).concat(
+    !dashboard?.projectProgress ? projects.map((project) => ({ ...project, ...projectMetrics(project, tasks) })) : []
+  );
+  const isNewAdmin = dataLoaded && user.role === "ADMIN" && projects.length === 0;
   const dueTodayCount = tasks.filter((t) => t.status !== "DONE" && t.dueDate && formatDate(t.dueDate, true) === "Today").length;
   const dueSoonCount = tasks.filter((t) => t.status !== "DONE" && t.dueDate && formatDate(t.dueDate, true) === "Tomorrow").length;
 
@@ -1955,7 +2089,10 @@ export default function App() {
     setSession((prev) => ({ ...prev, user: updatedUser }));
   }
 
-  if (!session || !user) return <AuthScreen onAuth={handleAuth} />;
+  if (!session || !user) {
+    const urlToken = new URLSearchParams(window.location.search).get("reset_token");
+    return <AuthScreen onAuth={handleAuth} initialResetToken={urlToken} />;
+  }
 
   const content = (() => {
     if (view === "projects") {
@@ -2026,6 +2163,7 @@ export default function App() {
         onOpenProject={openProject}
         onOpenTeam={() => navigate("team")}
         onCreateProject={() => setProjectModal({})}
+        dataLoaded={data.dashboard !== null}
       />
     );
   })();

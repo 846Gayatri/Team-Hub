@@ -2472,6 +2472,41 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
   vertical-align: middle;
 }
 
+/* ─────────────────────────── FORGOT / RESET PASSWORD ───────────────── */
+.auth-forgot {
+  text-align: center;
+  margin: 8px 0 0;
+  font-size: 0.82rem;
+  color: #64748b;
+}
+.auth-forgot button {
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: #818cf8;
+  font-size: 0.82rem;
+  padding: 0;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.auth-forgot button:hover { color: #a5b4fc; }
+
+.reset-form { display: flex; flex-direction: column; gap: 4px; }
+
+.form-success {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 10px 14px;
+  background: rgba(16,185,129,0.12);
+  border: 1px solid rgba(16,185,129,0.35);
+  border-radius: 8px;
+  color: #6ee7b7;
+  font-size: 0.84rem;
+  line-height: 1.5;
+}
+.form-success svg { flex-shrink: 0; margin-top: 2px; color: #34d399; }
+
 /* ─────────────────────────── ANIMATIONS ────────────────────────────── */
 @keyframes fade-in  { from { opacity: 0; } to { opacity: 1; } }
 @keyframes slide-up { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: translateY(0); } }
