@@ -10,6 +10,6 @@
     "start": "node backend/index.js"
   },
   "engines": {
-    "node": ">=22.5.0"
+    "node": "22.x"
   }
 }

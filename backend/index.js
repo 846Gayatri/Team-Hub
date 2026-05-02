@@ -765,7 +765,8 @@ app.get('/api/v1/dashboard', authenticate, (req, res) => {
 const frontendDist = path.join(__dirname, '..', 'frontend', 'dist');
 if (fs.existsSync(frontendDist)) {
   app.use(express.static(frontendDist, { index: false }));
-  app.get('{*path}', (req, res) => {
+  app.use((req, res, next) => {
+    if (req.method !== 'GET') return next();
     if (req.path.startsWith('/api/')) return res.status(404).json({ error: 'Not found' });
     res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, private');
     res.sendFile(path.join(frontendDist, 'index.html'));
