@@ -614,7 +614,7 @@ app.put('/api/v1/tasks/:id', authenticate, requireAdmin, (req, res) => {
   res.json(listTasks(req.user).find((item) => item.id === id));
 });
 
-app.patch('/api/v1/tasks/:id/status', authenticate, (req, res) => {
+app.patch('/api/v1/tasks/:id/status', authenticate, asyncRoute(async (req, res) => {
   const id = parseId(req.params.id, 'Task id');
   const status = normalizeStatus(req.body.status);
   const task = getTask(id);
@@ -623,31 +623,39 @@ app.patch('/api/v1/tasks/:id/status', authenticate, (req, res) => {
     return sendError(res, 403, 'Members can only update tasks assigned to them');
   }
 
-  const completionNote = status === 'DONE' ? optionalText(req.body.completionNote, 2000) : task.completionNote;
+  const completionNote = status === 'DONE' ? (optionalText(req.body.completionNote, 2000) || null) : task.completionNote;
   const completedAt = status === 'DONE' ? (task.completedAt || now()) : null;
   const timestamp = now();
 
-  db.prepare('UPDATE tasks SET status = ?, completionNote = ?, completedAt = ?, updatedAt = ? WHERE id = ?')
-    .run(status, completionNote, completedAt, timestamp, id);
+  db.exec('BEGIN');
+  try {
+    db.prepare('UPDATE tasks SET status = ?, completionNote = ?, completedAt = ?, updatedAt = ? WHERE id = ?')
+      .run(status, completionNote, completedAt, timestamp, id);
 
-  // Auto-add a completion comment if provided
-  if (status === 'DONE' && completionNote) {
+    // Auto-add a completion comment if provided
+    if (status === 'DONE' && completionNote) {
+      db.prepare(`
+        INSERT INTO task_comments (taskId, userId, content, type, createdAt)
+        VALUES (?, ?, ?, 'completion', ?)
+      `).run(id, req.user.id, completionNote, timestamp);
+    }
+
+    // Add status change system comment
+    const fromLabel = task.status.replace('_', ' ').toLowerCase();
+    const toLabel = status.replace('_', ' ').toLowerCase();
     db.prepare(`
       INSERT INTO task_comments (taskId, userId, content, type, createdAt)
-      VALUES (?, ?, ?, 'completion', ?)
-    `).run(id, req.user.id, completionNote, timestamp);
+      VALUES (?, ?, ?, 'status_change', ?)
+    `).run(id, req.user.id, `Changed status from ${fromLabel} to ${toLabel}`, timestamp);
+
+    db.exec('COMMIT');
+  } catch (error) {
+    db.exec('ROLLBACK');
+    throw error;
   }
 
-  // Add status change system comment
-  const fromLabel = task.status.replace('_', ' ').toLowerCase();
-  const toLabel = status.replace('_', ' ').toLowerCase();
-  db.prepare(`
-    INSERT INTO task_comments (taskId, userId, content, type, createdAt)
-    VALUES (?, ?, ?, 'status_change', ?)
-  `).run(id, req.user.id, `Changed status from ${fromLabel} to ${toLabel}`, timestamp);
-
   res.json(listTasks(req.user).find((item) => item.id === id));
-});
+}));
 
 // Task comments endpoints
 app.get('/api/v1/tasks/:id/comments', authenticate, (req, res) => {
