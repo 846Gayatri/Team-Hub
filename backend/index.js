@@ -186,6 +186,7 @@ function publicUser(row) {
     name: row.name,
     email: row.email,
     role: row.role,
+    hasPassword: Boolean(row.password),
     createdAt: row.createdAt,
   };
 }

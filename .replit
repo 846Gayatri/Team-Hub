@@ -9,10 +9,17 @@ channel = "stable-25_05"
 [userenv]
 
 [userenv.shared]
+VITE_GOOGLE_CLIENT_ID = "404424116320-070e2n40008ibqmvrl200jcrfjtrjt9g.apps.googleusercontent.com"
+
+[userenv.development]
 PORT = "3000"
 JWT_SECRET = "teamhub-dev-secret-change-before-deploy"
 SQLITE_PATH = "./data/teamhub.db"
-VITE_GOOGLE_CLIENT_ID = "404424116320-070e2n40008ibqmvrl200jcrfjtrjt9g.apps.googleusercontent.com"
+
+[userenv.production]
+PORT = "5000"
+JWT_SECRET = "teamhub-prod-secret-2026-secure-key-f9x3kq7m"
+SQLITE_PATH = "./data/teamhub.db"
 
 [workflows]
 runButton = "Project"

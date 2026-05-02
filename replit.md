@@ -38,15 +38,17 @@ A full-stack project and task management app with JWT authentication, Google OAu
 
 ## Key Features
 
-- **Authentication**: Google OAuth (GIS button) + email/password signup/login
+- **Authentication**: Google OAuth (GIS button) + email/password signup/login; token validated on every page load via `/auth/me`
 - **Role-based access**: Admin (full control) and Member (assigned work only)
-- **Dashboard**: Stats cards, overdue tasks, project progress, team workload
+- **Dashboard**: Stats cards, overdue tasks, project progress, team workload; Admin onboarding guide (3-step) shown to new admins with no projects
+- **Due-date awareness**: Tasks show "Today", "Tomorrow", "In X days", "Xd overdue" — color-coded red/amber/normal
+- **Due banner**: Dashboard shows chip counters for tasks due today and tomorrow
 - **Projects**: Create, edit, delete, member assignment, per-project progress
 - **Tasks**: Create, assign, set priority/due date, filter, search
 - **Kanban Board**: Drag-and-drop Kanban view on Tasks and Project Detail pages (toggle between list/kanban)
 - **Global Search**: ⌘K / Ctrl+K overlay — searches tasks and projects in real time
-- **Toast Notifications**: Bottom-right auto-dismiss toasts replacing old banner
-- **Profile Settings**: Click sidebar avatar to update name / change password
+- **Toast Notifications**: Welcome toast on login/signup; bottom-right auto-dismiss toasts; success/error/info variants
+- **Profile Settings**: Click sidebar avatar to update name / change password; `hasPassword` flag correctly detects Google-only users
 - **Mobile Sidebar**: Hamburger menu with slide-in drawer and backdrop overlay
 - **Sidebar Badges**: Overdue task count shown inline on nav items
 - **Comments & Proof-of-Work**: Per-task activity feed with typed comments

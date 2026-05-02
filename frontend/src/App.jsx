@@ -64,13 +64,20 @@ function readSession() {
   }
 }
 
-function formatDate(value) {
+function formatDate(value, smart = false) {
   if (!value) return "No due date";
-  return new Intl.DateTimeFormat("en", {
-    month: "short",
-    day: "numeric",
-    year: "numeric",
-  }).format(new Date(value));
+  const date = new Date(value);
+  if (smart) {
+    const today = new Date(); today.setHours(0,0,0,0);
+    const d = new Date(value); d.setHours(0,0,0,0);
+    const diff = Math.round((d - today) / 86400000);
+    if (diff === 0) return "Today";
+    if (diff === 1) return "Tomorrow";
+    if (diff === -1) return "Yesterday";
+    if (diff < -1) return `${Math.abs(diff)}d overdue`;
+    if (diff <= 7) return `In ${diff} days`;
+  }
+  return new Intl.DateTimeFormat("en", { month: "short", day: "numeric", year: "numeric" }).format(date);
 }
 
 function dateInputValue(value) {
@@ -405,7 +412,7 @@ function KanbanBoard({ tasks, user, canManage, onEdit, onDelete, onStatus, onVie
                     </div>
                     {task.dueDate && (
                       <div className={classNames("kanban-due", isOverdue(task) && "kanban-due-overdue")}>
-                        <CalendarClock size={11} />{formatDate(task.dueDate)}
+                        <CalendarClock size={11} />{formatDate(task.dueDate, true)}
                       </div>
                     )}
                   </div>
@@ -585,7 +592,7 @@ function AuthScreen({ onAuth }) {
       const response = await api.post(endpoint, payload);
       localStorage.setItem("token", response.data.token);
       localStorage.setItem("user", JSON.stringify(response.data.user));
-      onAuth({ token: response.data.token, user: response.data.user });
+      onAuth({ token: response.data.token, user: response.data.user, isNew: mode === "signup" });
     } catch (err) {
       setError(err.response?.data?.error || "Authentication failed");
     } finally {
@@ -654,7 +661,12 @@ function AuthScreen({ onAuth }) {
           <p>
             {mode === "login"
               ? "Sign in to your workspace"
-              : `Creating account as ${form.role === "ADMIN" ? "Admin" : "Member"}`}
+              : (
+                <span className="auth-role-badge">
+                  {form.role === "ADMIN" ? <ShieldCheck size={13} /> : <UserRound size={13} />}
+                  Signing up as {form.role === "ADMIN" ? "Admin" : "Member"}
+                </span>
+              )}
           </p>
         </div>
 
@@ -879,7 +891,7 @@ function TaskCard({ task, currentUser, canManage, onEdit, onDelete, onStatus, on
         {task.description && <p>{task.description}</p>}
         <div className="task-meta">
           <span><FolderKanban size={14} />{task.project?.name || "No project"}</span>
-          <span><CalendarClock size={14} />{formatDate(task.dueDate)}</span>
+          <span className={classNames(isOverdue(task) && "task-meta-overdue", task.dueDate && !isOverdue(task) && (formatDate(task.dueDate, true) === "Today" ? "task-meta-today" : formatDate(task.dueDate, true) === "Tomorrow" ? "task-meta-soon" : ""))}><CalendarClock size={14} />{formatDate(task.dueDate, true)}</span>
           <span><UserRound size={14} />{task.assignee?.name || "Unassigned"}</span>
         </div>
         {task.status === "DONE" && task.completedAt && (
@@ -941,7 +953,7 @@ function CompletionModal({ task, onConfirm, onClose }) {
             <div className="task-meta">
               <span><FolderKanban size={13} />{task.project?.name}</span>
               <span><UserRound size={13} />{task.assignee?.name || "Unassigned"}</span>
-              <span><CalendarClock size={13} />{formatDate(task.dueDate)}</span>
+              <span><CalendarClock size={13} />{formatDate(task.dueDate, true)}</span>
             </div>
           </div>
           <div className="completion-status-flow">
@@ -1052,7 +1064,7 @@ function TaskDetailModal({ task, currentUser, onClose, onAddComment }) {
             {task.description && <p className="task-detail-desc">{task.description}</p>}
             <div className="task-meta">
               <span><FolderKanban size={14} />{task.project?.name}</span>
-              <span><CalendarClock size={14} />{formatDate(task.dueDate)}</span>
+              <span><CalendarClock size={14} />{formatDate(task.dueDate, true)}</span>
               <span><UserRound size={14} />{task.assignee?.name || "Unassigned"}</span>
             </div>
           </div>
@@ -1204,13 +1216,55 @@ function Topbar({ title, subtitle, action }) {
   );
 }
 
-function DashboardView({ user, dashboard, tasks, projects, onOpenTask, onOpenProject }) {
+function AdminOnboarding({ onCreateProject, onOpenTeam }) {
+  return (
+    <section className="onboarding-panel">
+      <div className="onboarding-header">
+        <span className="onboarding-icon"><Sparkles size={22} /></span>
+        <div>
+          <h2>Welcome to your TeamHub workspace</h2>
+          <p>You're the Admin. Here's how to get your team up and running in 3 steps.</p>
+        </div>
+      </div>
+      <div className="onboarding-steps">
+        <div className="onboarding-step">
+          <span className="step-num">1</span>
+          <div>
+            <strong>Create your first project</strong>
+            <p>Projects group related work together. Each project has members, tasks, and a progress tracker.</p>
+            <button className="onboarding-cta" onClick={onCreateProject}><Plus size={15} /> Create a project</button>
+          </div>
+        </div>
+        <div className="onboarding-step">
+          <span className="step-num">2</span>
+          <div>
+            <strong>Invite your team members</strong>
+            <p>Team members sign up on this app and appear in the Team tab. You can then add them to projects.</p>
+            <button className="onboarding-cta" onClick={onOpenTeam}><Users size={15} /> Go to Team</button>
+          </div>
+        </div>
+        <div className="onboarding-step">
+          <span className="step-num">3</span>
+          <div>
+            <strong>Add tasks &amp; track progress</strong>
+            <p>Inside each project, create tasks, assign priorities, set due dates, and move them through the Kanban board.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function DashboardView({ user, dashboard, tasks, projects, onOpenTask, onOpenProject, onOpenTeam, onCreateProject }) {
   const stats = dashboard?.stats || {};
   const myTasks = tasks.filter((task) => task.assigneeId === user.id);
   const focusTasks = user.role === "ADMIN"
-    ? dashboard?.overdueTasks || tasks.filter(isOverdue).slice(0, 6)
+    ? tasks.filter(isOverdue).slice(0, 6)
     : myTasks.filter((task) => task.status !== "DONE").slice(0, 6);
-  const progressItems = dashboard?.projectProgress || projects.map((project) => projectMetrics(project, tasks));
+  const progressItems = dashboard?.projectProgress || projects.map((project) => ({ ...project, ...projectMetrics(project, tasks) }));
+  const isNewAdmin = user.role === "ADMIN" && projects.length === 0;
+  const dueTodayCount = tasks.filter((t) => t.status !== "DONE" && t.dueDate && formatDate(t.dueDate, true) === "Today").length;
+  const dueSoonCount = tasks.filter((t) => t.status !== "DONE" && t.dueDate && formatDate(t.dueDate, true) === "Tomorrow").length;
 
   return (
     <section className="view">
@@ -1219,80 +1273,93 @@ function DashboardView({ user, dashboard, tasks, projects, onOpenTask, onOpenPro
         subtitle={user.role === "ADMIN" ? "Control tower for project delivery and team workload." : "Your assigned work, deadlines, and project progress."}
       />
 
-      <div className="stats-grid">
-        <StatCard title="Projects" value={stats.projects || projects.length} icon={FolderKanban} />
-        <StatCard title={user.role === "ADMIN" ? "Total tasks" : "My tasks"} value={user.role === "ADMIN" ? stats.totalTasks || tasks.length : stats.myTasks || myTasks.length} icon={ClipboardList} tone="info" />
-        <StatCard title="In progress" value={stats.inProgressTasks || 0} icon={LoaderCircle} tone="warning" />
-        <StatCard title="Overdue" value={stats.overdueTasks || 0} icon={AlertTriangle} tone="danger" />
-      </div>
-
-      <div className="dashboard-grid">
-        <section className="panel">
-          <div className="panel-heading">
-            <h2>{user.role === "ADMIN" ? "Needs attention" : "My active tasks"}</h2>
-            <Button variant="secondary" size="sm" icon={Plus} onClick={onOpenTask}>New task</Button>
+      {isNewAdmin ? (
+        <AdminOnboarding onCreateProject={onCreateProject} onOpenTeam={onOpenTeam} />
+      ) : (
+        <>
+          <div className="stats-grid">
+            <StatCard title="Projects" value={stats.projects || projects.length} icon={FolderKanban} />
+            <StatCard title={user.role === "ADMIN" ? "Total tasks" : "My tasks"} value={user.role === "ADMIN" ? stats.totalTasks || tasks.length : stats.myTasks || myTasks.length} icon={ClipboardList} tone="info" />
+            <StatCard title="In progress" value={stats.inProgressTasks || 0} icon={LoaderCircle} tone="warning" />
+            <StatCard title="Overdue" value={stats.overdueTasks || 0} icon={AlertTriangle} tone="danger" />
           </div>
-          {focusTasks.length ? (
-            <div className="compact-list">
-              {focusTasks.map((task) => (
-                <button key={task.id} className="compact-row" onClick={() => onOpenProject(projects.find((project) => project.id === task.projectId))}>
-                  <span>
-                    <strong>{task.title}</strong>
-                    <small>{task.project?.name} · {formatDate(task.dueDate)}</small>
-                  </span>
-                  <StatusBadge status={task.status} overdue={isOverdue(task)} />
-                </button>
-              ))}
+
+          {(dueTodayCount > 0 || dueSoonCount > 0) && (
+            <div className="due-banner">
+              {dueTodayCount > 0 && <span className="due-banner-chip today"><CalendarClock size={14} />{dueTodayCount} due today</span>}
+              {dueSoonCount > 0 && <span className="due-banner-chip soon"><CalendarClock size={14} />{dueSoonCount} due tomorrow</span>}
             </div>
-          ) : (
-            <EmptyState title="Nothing urgent" text="No overdue or active tasks are waiting here." />
           )}
-        </section>
 
-        <section className="panel">
-          <div className="panel-heading">
-            <h2>Project progress</h2>
-            <BarChart3 size={19} />
-          </div>
-          {progressItems.length ? (
-            <div className="progress-list">
-              {progressItems.slice(0, 6).map((project) => (
-                <button key={project.id} className="progress-row" onClick={() => onOpenProject(projects.find((item) => item.id === project.id))}>
-                  <span>
-                    <strong>{project.name}</strong>
-                    <small>{project.completedTasks || project.done || 0}/{project.totalTasks || project.total || 0} tasks complete</small>
-                  </span>
-                  <div>
-                    <b>{project.progress}%</b>
-                    <ProgressBar value={project.progress} />
-                  </div>
-                </button>
-              ))}
-            </div>
-          ) : (
-            <EmptyState title="No project data" text="Create a project to start tracking progress." />
-          )}
-        </section>
-      </div>
-
-      {user.role === "ADMIN" && dashboard?.teamLoad?.length > 0 && (
-        <section className="panel">
-          <div className="panel-heading">
-            <h2>Team workload</h2>
-            <Users size={19} />
-          </div>
-          <div className="team-load">
-            {dashboard.teamLoad.map((member) => (
-              <article key={member.id}>
-                <Avatar user={member} />
-                <div>
-                  <strong>{member.name}</strong>
-                  <span>{member.assignedTasks} assigned · {member.completedTasks} done · {member.overdueTasks} overdue</span>
+          <div className="dashboard-grid">
+            <section className="panel">
+              <div className="panel-heading">
+                <h2>{user.role === "ADMIN" ? "Needs attention" : "My active tasks"}</h2>
+                <Button variant="secondary" size="sm" icon={Plus} onClick={onOpenTask}>New task</Button>
+              </div>
+              {focusTasks.length ? (
+                <div className="compact-list">
+                  {focusTasks.map((task) => (
+                    <button key={task.id} className="compact-row" onClick={() => onOpenProject(projects.find((project) => project.id === task.projectId))}>
+                      <span>
+                        <strong>{task.title}</strong>
+                        <small>{task.project?.name} · {formatDate(task.dueDate, true)}</small>
+                      </span>
+                      <StatusBadge status={task.status} overdue={isOverdue(task)} />
+                    </button>
+                  ))}
                 </div>
-              </article>
-            ))}
+              ) : (
+                <EmptyState title="Nothing urgent" text="No overdue or active tasks are waiting here." />
+              )}
+            </section>
+
+            <section className="panel">
+              <div className="panel-heading">
+                <h2>Project progress</h2>
+                <BarChart3 size={19} />
+              </div>
+              {progressItems.length ? (
+                <div className="progress-list">
+                  {progressItems.slice(0, 6).map((project) => (
+                    <button key={project.id} className="progress-row" onClick={() => onOpenProject(projects.find((item) => item.id === project.id))}>
+                      <span>
+                        <strong>{project.name}</strong>
+                        <small>{project.done || 0}/{project.total || 0} tasks complete</small>
+                      </span>
+                      <div>
+                        <b>{project.progress}%</b>
+                        <ProgressBar value={project.progress} />
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              ) : (
+                <EmptyState title="No project data" text="Create a project to start tracking progress." />
+              )}
+            </section>
           </div>
-        </section>
+
+          {user.role === "ADMIN" && dashboard?.teamLoad?.length > 0 && (
+            <section className="panel">
+              <div className="panel-heading">
+                <h2>Team workload</h2>
+                <Users size={19} />
+              </div>
+              <div className="team-load">
+                {dashboard.teamLoad.map((member) => (
+                  <article key={member.id}>
+                    <Avatar user={member} />
+                    <div>
+                      <strong>{member.name}</strong>
+                      <span>{member.assignedTasks} assigned · {member.completedTasks} done · {member.overdueTasks} overdue</span>
+                    </div>
+                  </article>
+                ))}
+              </div>
+            </section>
+          )}
+        </>
       )}
     </section>
   );
@@ -1654,11 +1721,21 @@ export default function App() {
     if (session?.token) {
       api.defaults.headers.common.Authorization = `Bearer ${session.token}`;
       window.history.replaceState(null, "", session.user.role === "ADMIN" ? "/admin" : "/member");
+      api.get("/auth/me").then((res) => {
+        setSession((prev) => prev ? { ...prev, user: res.data.user } : prev);
+        localStorage.setItem("user", JSON.stringify(res.data.user));
+      }).catch((err) => {
+        if (err.response?.status === 401) {
+          localStorage.removeItem("token");
+          localStorage.removeItem("user");
+          setSession(null);
+        }
+      });
     } else {
       delete api.defaults.headers.common.Authorization;
       window.history.replaceState(null, "", "/");
     }
-  }, [session]);
+  }, []);
 
   useEffect(() => {
     function handleKey(e) {
@@ -1714,7 +1791,14 @@ export default function App() {
     return () => { active = false; };
   }, [loadData]);
 
-  function handleAuth(nextSession) { setSession(nextSession); }
+  function handleAuth({ token, user, isNew }) {
+    setSession({ token, user });
+    if (isNew) {
+      addToast(`Welcome to TeamHub, ${user.name}! Your account is ready.`, "success");
+    } else {
+      addToast(`Welcome back, ${user.name}!`, "success");
+    }
+  }
 
   function navigate(nextView) {
     setView(nextView);
@@ -1934,6 +2018,8 @@ export default function App() {
         projects={data.projects}
         onOpenTask={() => startTask()}
         onOpenProject={openProject}
+        onOpenTeam={() => navigate("team")}
+        onCreateProject={() => setProjectModal({})}
       />
     );
   })();

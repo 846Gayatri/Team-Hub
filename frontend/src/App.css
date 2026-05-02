@@ -2357,6 +2357,121 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
   animation: shimmer 1.4s infinite linear;
 }
 
+/* ─────────────────────────── ADMIN ONBOARDING ──────────────────────── */
+.onboarding-panel {
+  background: linear-gradient(135deg, rgba(99,102,241,0.12) 0%, rgba(168,85,247,0.08) 100%);
+  border: 1px solid rgba(99,102,241,0.25);
+  border-radius: 16px;
+  padding: 32px;
+  margin-bottom: 28px;
+}
+.onboarding-header {
+  display: flex;
+  align-items: flex-start;
+  gap: 16px;
+  margin-bottom: 28px;
+}
+.onboarding-icon {
+  width: 48px;
+  height: 48px;
+  border-radius: 12px;
+  background: rgba(99,102,241,0.25);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  color: #a5b4fc;
+}
+.onboarding-header h2 { font-size: 1.15rem; font-weight: 700; color: #e2e8f0; margin: 0 0 4px; }
+.onboarding-header p { font-size: 0.85rem; color: #94a3b8; margin: 0; }
+.onboarding-steps { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 20px; }
+.onboarding-step {
+  display: flex;
+  gap: 16px;
+  background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 12px;
+  padding: 20px;
+}
+.step-num {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: rgba(99,102,241,0.3);
+  color: #a5b4fc;
+  font-weight: 800;
+  font-size: 0.9rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+.onboarding-step > div { flex: 1; }
+.onboarding-step strong { font-size: 0.88rem; color: #e2e8f0; display: block; margin-bottom: 6px; }
+.onboarding-step p { font-size: 0.8rem; color: #94a3b8; margin: 0 0 12px; line-height: 1.5; }
+.onboarding-cta {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 14px;
+  border-radius: 8px;
+  background: rgba(99,102,241,0.25);
+  border: 1px solid rgba(99,102,241,0.4);
+  color: #a5b4fc;
+  font-size: 0.82rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.onboarding-cta:hover { background: rgba(99,102,241,0.4); }
+
+/* ─────────────────────────── DUE BANNER ────────────────────────────── */
+.due-banner {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 20px;
+  flex-wrap: wrap;
+}
+.due-banner-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 14px;
+  border-radius: 20px;
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+.due-banner-chip.today {
+  background: rgba(239,68,68,0.15);
+  border: 1px solid rgba(239,68,68,0.3);
+  color: #fca5a5;
+}
+.due-banner-chip.soon {
+  background: rgba(245,158,11,0.12);
+  border: 1px solid rgba(245,158,11,0.25);
+  color: #fcd34d;
+}
+
+/* ─────────────────────────── SMART DATE COLORS ─────────────────────── */
+.task-meta-overdue { color: #f87171 !important; font-weight: 600; }
+.task-meta-today   { color: #f87171 !important; font-weight: 600; }
+.task-meta-soon    { color: #fbbf24 !important; font-weight: 600; }
+
+/* ─────────────────────────── AUTH ROLE BADGE ───────────────────────── */
+.auth-role-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 10px;
+  border-radius: 20px;
+  background: rgba(99,102,241,0.2);
+  border: 1px solid rgba(99,102,241,0.35);
+  color: #a5b4fc;
+  font-size: 0.78rem;
+  font-weight: 600;
+  vertical-align: middle;
+}
+
 /* ─────────────────────────── ANIMATIONS ────────────────────────────── */
 @keyframes fade-in  { from { opacity: 0; } to { opacity: 1; } }
 @keyframes slide-up { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: translateY(0); } }
