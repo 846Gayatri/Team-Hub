@@ -481,6 +481,31 @@ app.get('/api/v1/auth/me', authenticate, (req, res) => {
   return res.json({ user });
 });
 
+app.patch('/api/v1/auth/profile', authenticate, asyncRoute(async (req, res) => {
+  const row = db.prepare('SELECT * FROM users WHERE id = ?').get(req.user.id);
+  if (!row) return sendError(res, 404, 'User not found');
+
+  const name = requireText(req.body.name || row.name, 'Name', 80);
+  const { currentPassword, newPassword } = req.body;
+  const timestamp = now();
+
+  let passwordHash = row.password;
+  if (newPassword) {
+    if (!currentPassword) return sendError(res, 400, 'Current password is required to set a new one');
+    if (!row.password) return sendError(res, 400, 'Google accounts cannot set a password here');
+    const match = await bcrypt.compare(String(currentPassword), row.password).catch(() => false);
+    if (!match) return sendError(res, 401, 'Current password is incorrect');
+    if (String(newPassword).length < 6) return sendError(res, 400, 'New password must be at least 6 characters');
+    passwordHash = await bcrypt.hash(String(newPassword), 12);
+  }
+
+  db.prepare('UPDATE users SET name = ?, password = ?, updatedAt = ? WHERE id = ?')
+    .run(name, passwordHash, timestamp, req.user.id);
+
+  const user = publicUser(getUser(req.user.id));
+  res.json({ user });
+}));
+
 app.get('/api/v1/users', authenticate, requireAdmin, (req, res) => {
   res.json(listUsers());
 });

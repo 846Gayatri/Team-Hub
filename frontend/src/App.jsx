@@ -5,6 +5,7 @@ import {
   ArrowRight,
   BarChart3,
   CalendarClock,
+  CheckCheck,
   CheckCircle2,
   CheckSquare,
   ChevronLeft,
@@ -16,15 +17,19 @@ import {
   FileCheck,
   FolderKanban,
   LayoutDashboard,
+  LayoutGrid,
+  LayoutList,
   LoaderCircle,
   LogIn,
   LogOut,
+  Menu,
   MessageSquare,
   Pencil,
   Plus,
   Save,
   Search,
   Send,
+  Settings,
   ShieldCheck,
   Sparkles,
   Trash2,
@@ -231,6 +236,258 @@ function EmptyState({ title, text, action }) {
       <h3>{title}</h3>
       {text && <p>{text}</p>}
       {action}
+    </div>
+  );
+}
+
+let toastIdCounter = 0;
+
+function ToastContainer({ toasts, onRemove }) {
+  return (
+    <div className="toast-container" aria-live="polite">
+      {toasts.map((t) => (
+        <div key={t.id} className={`toast toast-${t.type}`}>
+          {t.type === "success" ? <CheckCheck size={16} /> : t.type === "info" ? <CheckCircle2 size={16} /> : <AlertTriangle size={16} />}
+          <span>{t.message}</span>
+          <button className="toast-close" onClick={() => onRemove(t.id)} aria-label="Dismiss"><X size={13} /></button>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function GlobalSearch({ tasks, projects, onOpenProject, onNavigate, onViewDetail, onClose }) {
+  const [q, setQ] = useState("");
+  const inputRef = useRef(null);
+
+  useEffect(() => {
+    inputRef.current?.focus();
+    function onKey(e) { if (e.key === "Escape") onClose(); }
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [onClose]);
+
+  const results = useMemo(() => {
+    if (!q.trim()) return { tasks: [], projects: [] };
+    const lower = q.toLowerCase();
+    return {
+      tasks: tasks.filter((t) =>
+        t.title.toLowerCase().includes(lower) ||
+        (t.description || "").toLowerCase().includes(lower) ||
+        (t.project?.name || "").toLowerCase().includes(lower)
+      ).slice(0, 6),
+      projects: projects.filter((p) =>
+        p.name.toLowerCase().includes(lower) ||
+        (p.description || "").toLowerCase().includes(lower)
+      ).slice(0, 4),
+    };
+  }, [q, tasks, projects]);
+
+  const hasResults = results.tasks.length > 0 || results.projects.length > 0;
+
+  return (
+    <div className="search-overlay" onMouseDown={onClose}>
+      <div className="search-modal" onMouseDown={(e) => e.stopPropagation()}>
+        <div className="search-input-row">
+          <Search size={18} className="search-icon" />
+          <input ref={inputRef} value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search tasks and projects…" />
+          <kbd className="search-esc">ESC</kbd>
+        </div>
+        {q.trim() ? (
+          <div className="search-results">
+            {!hasResults && <div className="search-empty">No results for "{q}"</div>}
+            {results.projects.length > 0 && (
+              <>
+                <div className="search-section-label">Projects</div>
+                {results.projects.map((p) => (
+                  <button key={p.id} className="search-result" onClick={() => { onOpenProject(p); onClose(); }}>
+                    <FolderKanban size={15} />
+                    <span className="search-result-title">{p.name}</span>
+                    <span className="search-result-sub">{p.description || "No description"}</span>
+                  </button>
+                ))}
+              </>
+            )}
+            {results.tasks.length > 0 && (
+              <>
+                <div className="search-section-label">Tasks</div>
+                {results.tasks.map((t) => (
+                  <button key={t.id} className="search-result" onClick={() => { onViewDetail(t); onClose(); }}>
+                    <CheckSquare size={15} />
+                    <div className="search-result-body">
+                      <span className="search-result-title">{t.title}</span>
+                      <span className="search-result-sub">{t.project?.name} · {t.assignee?.name || "Unassigned"}</span>
+                    </div>
+                    <StatusBadge status={t.status} overdue={isOverdue(t)} />
+                  </button>
+                ))}
+              </>
+            )}
+          </div>
+        ) : (
+          <div className="search-hints">
+            <span><kbd>↑↓</kbd> navigate</span>
+            <span><kbd>↵</kbd> open</span>
+            <span><kbd>ESC</kbd> close</span>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function KanbanBoard({ tasks, user, canManage, onEdit, onDelete, onStatus, onViewDetail, onMarkDone }) {
+  const [dragId, setDragId] = useState(null);
+  const [dragOver, setDragOver] = useState(null);
+
+  const cols = [
+    { id: "TODO", label: "To Do", tone: "neutral" },
+    { id: "IN_PROGRESS", label: "In Progress", tone: "info" },
+    { id: "DONE", label: "Done", tone: "success" },
+  ];
+
+  function handleDrop(e, status) {
+    e.preventDefault();
+    if (!dragId) return;
+    const task = tasks.find((t) => t.id === dragId);
+    if (task && task.status !== status) {
+      if (status === "DONE") onMarkDone(task);
+      else onStatus(dragId, status);
+    }
+    setDragId(null);
+    setDragOver(null);
+  }
+
+  return (
+    <div className="kanban-board">
+      {cols.map((col) => {
+        const colTasks = tasks.filter((t) => t.status === col.id);
+        const isOver = dragOver === col.id;
+        return (
+          <div
+            key={col.id}
+            className={classNames("kanban-col", isOver && "kanban-col-over")}
+            onDragOver={(e) => { e.preventDefault(); setDragOver(col.id); }}
+            onDragLeave={() => setDragOver(null)}
+            onDrop={(e) => handleDrop(e, col.id)}
+          >
+            <div className={classNames("kanban-col-header", `kanban-header-${col.tone}`)}>
+              <span>{col.label}</span>
+              <span className="kanban-count">{colTasks.length}</span>
+            </div>
+            <div className="kanban-cards">
+              {colTasks.map((task) => {
+                const canAct = canManage || task.assigneeId === user.id;
+                return (
+                  <div
+                    key={task.id}
+                    className={classNames("kanban-card", isOverdue(task) && "task-overdue", dragId === task.id && "kanban-dragging")}
+                    draggable={canAct}
+                    onDragStart={() => setDragId(task.id)}
+                    onDragEnd={() => { setDragId(null); setDragOver(null); }}
+                  >
+                    <div className="kanban-card-badges">
+                      <PriorityBadge priority={task.priority} />
+                      {isOverdue(task) && <span className="badge badge-danger" style={{ fontSize: 10 }}><AlertTriangle size={10} />Overdue</span>}
+                    </div>
+                    <p className="kanban-card-title">{task.title}</p>
+                    {task.description && <p className="kanban-card-desc">{task.description.slice(0, 90)}{task.description.length > 90 ? "…" : ""}</p>}
+                    <div className="kanban-card-footer">
+                      <span className="kanban-assignee">
+                        <Avatar user={task.assignee} size="sm" />
+                        <span>{task.assignee?.name || "Unassigned"}</span>
+                      </span>
+                      <div className="kanban-card-actions">
+                        <button className="kanban-icon-btn" onClick={() => onViewDetail(task)} title="View details"><Eye size={13} /></button>
+                        {canManage && <button className="kanban-icon-btn" onClick={() => onEdit(task)} title="Edit"><Pencil size={13} /></button>}
+                        {canManage && <button className="kanban-icon-btn kanban-icon-danger" onClick={() => onDelete(task.id)} title="Delete"><Trash2 size={13} /></button>}
+                      </div>
+                    </div>
+                    {task.dueDate && (
+                      <div className={classNames("kanban-due", isOverdue(task) && "kanban-due-overdue")}>
+                        <CalendarClock size={11} />{formatDate(task.dueDate)}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+              {colTasks.length === 0 && (
+                <div className={classNames("kanban-empty", isOver && "kanban-empty-over")}>
+                  {isOver ? "Drop here" : "No tasks"}
+                </div>
+              )}
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+function ProfileModal({ user, onClose, onUpdate }) {
+  const [name, setName] = useState(user.name);
+  const [currentPw, setCurrentPw] = useState("");
+  const [newPw, setNewPw] = useState("");
+  const [error, setError] = useState("");
+  const [success, setSuccess] = useState("");
+  const [loading, setLoading] = useState(false);
+  const isGoogleUser = !user.hasPassword;
+
+  async function submit(e) {
+    e.preventDefault();
+    setError(""); setSuccess("");
+    setLoading(true);
+    try {
+      const payload = { name };
+      if (newPw) {
+        payload.currentPassword = currentPw;
+        payload.newPassword = newPw;
+      }
+      const res = await api.patch("/auth/profile", payload);
+      localStorage.setItem("user", JSON.stringify(res.data.user));
+      setSuccess("Profile updated successfully");
+      onUpdate(res.data.user);
+      setCurrentPw(""); setNewPw("");
+    } catch (err) {
+      setError(err.response?.data?.error || "Could not update profile");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  return (
+    <div className="modal-backdrop" onMouseDown={onClose}>
+      <section className="modal" onMouseDown={(e) => e.stopPropagation()}>
+        <header className="modal-header">
+          <h2>Profile Settings</h2>
+          <IconButton label="Close" icon={X} onClick={onClose} />
+        </header>
+        <form className="modal-form" onSubmit={submit}>
+          <div className="profile-header-row">
+            <Avatar user={{ ...user, name }} />
+            <div>
+              <strong>{user.name}</strong>
+              <small>{user.email}</small>
+              <span className={classNames("role-chip", user.role === "ADMIN" ? "admin" : "member")}>{user.role}</span>
+            </div>
+          </div>
+          <Field label="Full name" value={name} onChange={(e) => setName(e.target.value)} required />
+          {!isGoogleUser && (
+            <>
+              <div className="field-divider"><span>Change password</span></div>
+              <Field label="Current password" type="password" value={currentPw} onChange={(e) => setCurrentPw(e.target.value)} autoComplete="current-password" />
+              <Field label="New password" type="password" placeholder="Min. 6 characters" value={newPw} onChange={(e) => setNewPw(e.target.value)} autoComplete="new-password" />
+            </>
+          )}
+          {isGoogleUser && <div className="form-note">Signed in with Google — password change not available.</div>}
+          {error && <div className="form-alert"><AlertTriangle size={14} />{error}</div>}
+          {success && <div className="form-success"><CheckCheck size={14} />{success}</div>}
+          <footer className="modal-actions">
+            <Button type="button" variant="secondary" onClick={onClose}>Cancel</Button>
+            <Button type="submit" icon={Save} disabled={loading}>{loading ? "Saving…" : "Save changes"}</Button>
+          </footer>
+        </form>
+      </section>
     </div>
   );
 }
@@ -867,53 +1124,71 @@ function TaskDetailModal({ task, currentUser, onClose, onAddComment }) {
   );
 }
 
-function Sidebar({ user, view, projects, onNavigate, onOpenProject, onLogout }) {
+function Sidebar({ user, view, projects, overdueTasks, onNavigate, onOpenProject, onLogout, onOpenProfile, onClose, mobileOpen }) {
   const nav = [
     { id: "dashboard", label: "Dashboard", Icon: LayoutDashboard },
     { id: "projects", label: "Projects", Icon: FolderKanban },
-    { id: "tasks", label: user.role === "ADMIN" ? "Tasks" : "My tasks", Icon: CheckSquare },
+    { id: "tasks", label: user.role === "ADMIN" ? "Tasks" : "My tasks", Icon: CheckSquare, badge: overdueTasks || 0 },
     ...(user.role === "ADMIN" ? [{ id: "team", label: "Team", Icon: Users }] : []),
   ];
 
+  function handleNavigate(id) {
+    onNavigate(id);
+    if (onClose) onClose();
+  }
+
+  function handleOpenProject(project) {
+    onOpenProject(project);
+    if (onClose) onClose();
+  }
+
   return (
-    <aside className="sidebar">
-      <div className="sidebar-brand">
-        <span><FolderKanban size={22} /></span>
-        <div>
-          <strong>TeamHub</strong>
-          <small>{user.role === "ADMIN" ? "Admin panel" : "Member panel"}</small>
+    <>
+      {mobileOpen && <div className="sidebar-overlay" onMouseDown={onClose} />}
+      <aside className={classNames("sidebar", mobileOpen && "sidebar-mobile-open")}>
+        <div className="sidebar-brand">
+          <span><FolderKanban size={22} /></span>
+          <div>
+            <strong>TeamHub</strong>
+            <small>{user.role === "ADMIN" ? "Admin panel" : "Member panel"}</small>
+          </div>
+          {onClose && <IconButton label="Close menu" icon={X} onClick={onClose} />}
         </div>
-      </div>
 
-      <nav className="sidebar-nav">
-        {nav.map(({ id, label, Icon }) => (
-          <button key={id} className={view === id ? "active" : ""} onClick={() => onNavigate(id)}>
-            <Icon size={18} />
-            <span>{label}</span>
-          </button>
-        ))}
-      </nav>
+        <nav className="sidebar-nav">
+          {nav.map(({ id, label, Icon, badge }) => (
+            <button key={id} className={view === id || (view === "project-detail" && id === "projects") ? "active" : ""} onClick={() => handleNavigate(id)}>
+              <Icon size={18} />
+              <span>{label}</span>
+              {badge > 0 && <span className="nav-badge">{badge}</span>}
+            </button>
+          ))}
+        </nav>
 
-      <div className="sidebar-projects">
-        <span className="section-kicker">Projects</span>
-        {projects.slice(0, 8).map((project) => (
-          <button key={project.id} onClick={() => onOpenProject(project)}>
-            <CircleDot size={13} />
-            <span>{project.name}</span>
-          </button>
-        ))}
-        {!projects.length && <p>No projects yet</p>}
-      </div>
-
-      <footer className="sidebar-footer">
-        <Avatar user={user} />
-        <div>
-          <strong>{user.name}</strong>
-          <small>{user.email}</small>
+        <div className="sidebar-projects">
+          <span className="section-kicker">Projects</span>
+          {projects.slice(0, 8).map((project) => (
+            <button key={project.id} className={view === "project-detail" ? "" : ""} onClick={() => handleOpenProject(project)}>
+              <CircleDot size={13} />
+              <span>{project.name}</span>
+            </button>
+          ))}
+          {!projects.length && <p>No projects yet</p>}
         </div>
-        <IconButton label="Logout" icon={LogOut} onClick={onLogout} />
-      </footer>
-    </aside>
+
+        <footer className="sidebar-footer">
+          <button className="sidebar-profile-btn" onClick={onOpenProfile} title="Profile settings">
+            <Avatar user={user} />
+            <div>
+              <strong>{user.name}</strong>
+              <small>{user.email}</small>
+            </div>
+            <Settings size={15} className="sidebar-settings-icon" />
+          </button>
+          <IconButton label="Logout" icon={LogOut} onClick={onLogout} />
+        </footer>
+      </aside>
+    </>
   );
 }
 
@@ -1074,6 +1349,7 @@ function ProjectsView({ user, projects, tasks, onCreate, onEdit, onDelete, onOpe
 
 function ProjectDetailView({ user, project, tasks, onBack, onCreateTask, onEditProject, onDeleteProject, onEditTask, onDeleteTask, onStatus, onViewDetail, onMarkDone }) {
   const [filter, setFilter] = useState("ALL");
+  const [viewType, setViewType] = useState("list");
   const projectTasks = tasks.filter((task) => task.projectId === project.id);
   const metrics = projectMetrics(project, tasks);
   const filteredTasks = projectTasks.filter((task) => {
@@ -1138,33 +1414,54 @@ function ProjectDetailView({ user, project, tasks, onBack, onCreateTask, onEditP
       <section className="panel">
         <div className="panel-heading">
           <h2>Tasks</h2>
-          <div className="filter-pills">
-            {["ALL", "TODO", "IN_PROGRESS", "DONE", "OVERDUE"].map((item) => (
-              <button key={item} className={filter === item ? "active" : ""} onClick={() => setFilter(item)}>
-                {item === "ALL" ? "All" : item.replace("_", " ").toLowerCase()}
-              </button>
-            ))}
+          <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
+            {viewType === "list" && (
+              <div className="filter-pills">
+                {["ALL", "TODO", "IN_PROGRESS", "DONE", "OVERDUE"].map((item) => (
+                  <button key={item} className={filter === item ? "active" : ""} onClick={() => setFilter(item)}>
+                    {item === "ALL" ? "All" : item.replace("_", " ").toLowerCase()}
+                  </button>
+                ))}
+              </div>
+            )}
+            <div className="view-toggle">
+              <button className={viewType === "list" ? "active" : ""} onClick={() => setViewType("list")} title="List view"><LayoutList size={16} /></button>
+              <button className={viewType === "kanban" ? "active" : ""} onClick={() => setViewType("kanban")} title="Kanban view"><LayoutGrid size={16} /></button>
+            </div>
           </div>
         </div>
 
-        {filteredTasks.length ? (
-          <div className="task-list">
-            {filteredTasks.map((task) => (
-              <TaskCard
-                key={task.id}
-                task={task}
-                currentUser={user}
-                canManage={user.role === "ADMIN"}
-                onEdit={onEditTask}
-                onDelete={onDeleteTask}
-                onStatus={onStatus}
-                onViewDetail={onViewDetail}
-                onMarkDone={onMarkDone}
-              />
-            ))}
-          </div>
+        {viewType === "list" ? (
+          filteredTasks.length ? (
+            <div className="task-list">
+              {filteredTasks.map((task) => (
+                <TaskCard
+                  key={task.id}
+                  task={task}
+                  currentUser={user}
+                  canManage={user.role === "ADMIN"}
+                  onEdit={onEditTask}
+                  onDelete={onDeleteTask}
+                  onStatus={onStatus}
+                  onViewDetail={onViewDetail}
+                  onMarkDone={onMarkDone}
+                />
+              ))}
+            </div>
+          ) : (
+            <EmptyState title="No tasks match this view" text="Change the filter or add a task to this project." />
+          )
         ) : (
-          <EmptyState title="No tasks match this view" text="Change the filter or add a task to this project." />
+          <KanbanBoard
+            tasks={projectTasks}
+            user={user}
+            canManage={user.role === "ADMIN"}
+            onEdit={onEditTask}
+            onDelete={onDeleteTask}
+            onStatus={onStatus}
+            onViewDetail={onViewDetail}
+            onMarkDone={onMarkDone}
+          />
         )}
       </section>
     </section>
@@ -1175,6 +1472,7 @@ function TasksView({ user, tasks, projects, onCreate, onEdit, onDelete, onStatus
   const [query, setQuery] = useState("");
   const [status, setStatus] = useState("ALL");
   const [projectId, setProjectId] = useState("ALL");
+  const [viewType, setViewType] = useState("list");
 
   const visibleTasks = useMemo(() => {
     const base = user.role === "ADMIN" ? tasks : tasks.filter((task) => task.assigneeId === user.id);
@@ -1189,6 +1487,11 @@ function TasksView({ user, tasks, projects, onCreate, onEdit, onDelete, onStatus
     });
   }, [projectId, query, status, tasks, user]);
 
+  const kanbanTasks = useMemo(() => {
+    const base = user.role === "ADMIN" ? tasks : tasks.filter((t) => t.assigneeId === user.id);
+    return projectId === "ALL" ? base : base.filter((t) => String(t.projectId) === String(projectId));
+  }, [tasks, user, projectId]);
+
   return (
     <section className="view">
       <Topbar
@@ -1198,41 +1501,62 @@ function TasksView({ user, tasks, projects, onCreate, onEdit, onDelete, onStatus
       />
 
       <div className="toolbar">
-        <label className="search-box">
-          <Search size={17} />
-          <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search tasks" />
-        </label>
-        <select value={status} onChange={(event) => setStatus(event.target.value)}>
-          <option value="ALL">All statuses</option>
-          <option value="TODO">To do</option>
-          <option value="IN_PROGRESS">In progress</option>
-          <option value="DONE">Done</option>
-          <option value="OVERDUE">Overdue</option>
-        </select>
+        {viewType === "list" && (
+          <label className="search-box">
+            <Search size={17} />
+            <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search tasks" />
+          </label>
+        )}
+        {viewType === "list" && (
+          <select value={status} onChange={(event) => setStatus(event.target.value)}>
+            <option value="ALL">All statuses</option>
+            <option value="TODO">To do</option>
+            <option value="IN_PROGRESS">In progress</option>
+            <option value="DONE">Done</option>
+            <option value="OVERDUE">Overdue</option>
+          </select>
+        )}
         <select value={projectId} onChange={(event) => setProjectId(event.target.value)}>
           <option value="ALL">All projects</option>
           {projects.map((project) => <option key={project.id} value={project.id}>{project.name}</option>)}
         </select>
+        <div className="view-toggle">
+          <button className={viewType === "list" ? "active" : ""} onClick={() => setViewType("list")} title="List view"><LayoutList size={16} /></button>
+          <button className={viewType === "kanban" ? "active" : ""} onClick={() => setViewType("kanban")} title="Kanban view"><LayoutGrid size={16} /></button>
+        </div>
       </div>
 
-      {visibleTasks.length ? (
-        <div className="task-list">
-          {visibleTasks.map((task) => (
-            <TaskCard
-              key={task.id}
-              task={task}
-              currentUser={user}
-              canManage={user.role === "ADMIN"}
-              onEdit={onEdit}
-              onDelete={onDelete}
-              onStatus={onStatus}
-              onViewDetail={onViewDetail}
-              onMarkDone={onMarkDone}
-            />
-          ))}
-        </div>
+      {viewType === "list" ? (
+        visibleTasks.length ? (
+          <div className="task-list">
+            {visibleTasks.map((task) => (
+              <TaskCard
+                key={task.id}
+                task={task}
+                currentUser={user}
+                canManage={user.role === "ADMIN"}
+                onEdit={onEdit}
+                onDelete={onDelete}
+                onStatus={onStatus}
+                onViewDetail={onViewDetail}
+                onMarkDone={onMarkDone}
+              />
+            ))}
+          </div>
+        ) : (
+          <EmptyState title="No tasks found" text="Try a different filter or create a task." />
+        )
       ) : (
-        <EmptyState title="No tasks found" text="Try a different filter or create a task." />
+        <KanbanBoard
+          tasks={kanbanTasks}
+          user={user}
+          canManage={user.role === "ADMIN"}
+          onEdit={onEdit}
+          onDelete={onDelete}
+          onStatus={onStatus}
+          onViewDetail={onViewDetail}
+          onMarkDone={onMarkDone}
+        />
       )}
     </section>
   );
@@ -1299,13 +1623,32 @@ export default function App() {
   const [taskModal, setTaskModal] = useState(null);
   const [completionModal, setCompletionModal] = useState(null);
   const [taskDetailModal, setTaskDetailModal] = useState(null);
+  const [profileModal, setProfileModal] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [notice, setNotice] = useState("");
+  const [toasts, setToasts] = useState([]);
+  const [searchOpen, setSearchOpen] = useState(false);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
 
   const user = session?.user;
   const selectedProject = selectedProjectId
     ? data.projects.find((project) => project.id === selectedProjectId)
     : null;
+
+  const overdueTasks = useMemo(() => {
+    if (!user) return 0;
+    const base = user.role === "ADMIN" ? data.tasks : data.tasks.filter((t) => t.assigneeId === user.id);
+    return base.filter(isOverdue).length;
+  }, [data.tasks, user]);
+
+  function addToast(message, type = "error") {
+    const id = ++toastIdCounter;
+    setToasts((prev) => [...prev, { id, message, type }]);
+    setTimeout(() => setToasts((prev) => prev.filter((t) => t.id !== id)), 4500);
+  }
+
+  function removeToast(id) {
+    setToasts((prev) => prev.filter((t) => t.id !== id));
+  }
 
   useEffect(() => {
     if (session?.token) {
@@ -1316,6 +1659,21 @@ export default function App() {
       window.history.replaceState(null, "", "/");
     }
   }, [session]);
+
+  useEffect(() => {
+    function handleKey(e) {
+      if ((e.metaKey || e.ctrlKey) && e.key === "k") {
+        e.preventDefault();
+        setSearchOpen((v) => !v);
+      }
+      if (e.key === "Escape") {
+        setSearchOpen(false);
+        setSidebarOpen(false);
+      }
+    }
+    window.addEventListener("keydown", handleKey);
+    return () => window.removeEventListener("keydown", handleKey);
+  }, []);
 
   const logout = useCallback(() => {
     localStorage.removeItem("token");
@@ -1329,8 +1687,6 @@ export default function App() {
   const loadData = useCallback(async () => {
     if (!session) return;
     setLoading(true);
-    setNotice("");
-
     try {
       const [dashboard, projects, tasks, users] = await Promise.all([
         api.get("/dashboard"),
@@ -1338,7 +1694,6 @@ export default function App() {
         api.get("/tasks"),
         session.user.role === "ADMIN" ? api.get("/users") : Promise.resolve({ data: [] }),
       ]);
-
       setData({
         dashboard: dashboard.data,
         projects: projects.data,
@@ -1347,7 +1702,7 @@ export default function App() {
       });
     } catch (err) {
       if (err.response?.status === 401) logout();
-      setNotice(err.response?.data?.error || "Could not load workspace data");
+      else addToast(err.response?.data?.error || "Could not load workspace data");
     } finally {
       setLoading(false);
     }
@@ -1355,40 +1710,35 @@ export default function App() {
 
   useEffect(() => {
     let active = true;
-    Promise.resolve().then(() => {
-      if (active) loadData();
-    });
-    return () => {
-      active = false;
-    };
+    Promise.resolve().then(() => { if (active) loadData(); });
+    return () => { active = false; };
   }, [loadData]);
 
-  function handleAuth(nextSession) {
-    setSession(nextSession);
-  }
+  function handleAuth(nextSession) { setSession(nextSession); }
 
   function navigate(nextView) {
     setView(nextView);
     if (nextView !== "project-detail") setSelectedProjectId(null);
+    setSidebarOpen(false);
   }
 
   function openProject(project) {
     if (!project) return;
     setSelectedProjectId(project.id);
     setView("project-detail");
+    setSidebarOpen(false);
   }
 
   function startTask(project) {
     if (!project && data.projects.length === 0) {
       if (user.role === "ADMIN") {
-        setNotice("Create a project first, then add tasks inside it.");
+        addToast("Create a project first, then add tasks inside it.", "info");
         setProjectModal({});
       } else {
-        setNotice("No project is assigned to you yet. Ask an admin to add you to a project before creating tasks.");
+        addToast("No project assigned yet — ask an admin to add you first.", "info");
       }
       return;
     }
-
     setTaskModal(project?.id ? { projectId: project.id } : {});
   }
 
@@ -1400,8 +1750,9 @@ export default function App() {
       setProjectModal(null);
       await loadData();
       openProject(response.data);
+      addToast(projectModal?.id ? "Project updated" : "Project created", "success");
     } catch (err) {
-      setNotice(err.response?.data?.error || "Could not save project");
+      addToast(err.response?.data?.error || "Could not save project");
     }
   }
 
@@ -1412,8 +1763,9 @@ export default function App() {
       setSelectedProjectId(null);
       setView("projects");
       await loadData();
+      addToast("Project deleted", "success");
     } catch (err) {
-      setNotice(err.response?.data?.error || "Could not delete project");
+      addToast(err.response?.data?.error || "Could not delete project");
     }
   }
 
@@ -1426,8 +1778,9 @@ export default function App() {
       }
       setTaskModal(null);
       await loadData();
+      addToast(taskModal?.id ? "Task updated" : "Task created", "success");
     } catch (err) {
-      setNotice(err.response?.data?.error || "Could not save task");
+      addToast(err.response?.data?.error || "Could not save task");
     }
   }
 
@@ -1436,8 +1789,9 @@ export default function App() {
     try {
       await api.delete(`/tasks/${id}`);
       await loadData();
+      addToast("Task deleted", "success");
     } catch (err) {
-      setNotice(err.response?.data?.error || "Could not delete task");
+      addToast(err.response?.data?.error || "Could not delete task");
     }
   }
 
@@ -1446,7 +1800,7 @@ export default function App() {
       await api.patch(`/tasks/${id}/status`, { status });
       await loadData();
     } catch (err) {
-      setNotice(err.response?.data?.error || "Could not update task status");
+      addToast(err.response?.data?.error || "Could not update task status");
     }
   }
 
@@ -1458,8 +1812,9 @@ export default function App() {
       }
       setCompletionModal(null);
       await loadData();
+      addToast("Task marked as done!", "success");
     } catch (err) {
-      setNotice(err.response?.data?.error || "Could not mark task as done");
+      addToast(err.response?.data?.error || "Could not mark task as done");
     }
   }
 
@@ -1467,24 +1822,21 @@ export default function App() {
     try {
       await api.post(`/tasks/${id}/comments`, { content, type });
       await loadData();
-      
-      // Update the open detail modal with the new comments without waiting for the full re-render
       if (taskDetailModal && taskDetailModal.id === id) {
-         api.get('/tasks').then(res => {
-            const updatedTask = res.data.find(t => t.id === id);
-            if(updatedTask) setTaskDetailModal(updatedTask);
-         });
+        api.get("/tasks").then((res) => {
+          const updatedTask = res.data.find((t) => t.id === id);
+          if (updatedTask) setTaskDetailModal(updatedTask);
+        });
       }
     } catch (err) {
-      setNotice(err.response?.data?.error || "Could not add comment");
+      addToast(err.response?.data?.error || "Could not add comment");
     }
   }
 
   function openTaskDetail(task) {
-    // If we only have basic info, fetch fresh to get full comments
-    api.get('/tasks').then(res => {
-        const fullTask = res.data.find(t => t.id === task.id);
-        if(fullTask) setTaskDetailModal(fullTask);
+    api.get("/tasks").then((res) => {
+      const fullTask = res.data.find((t) => t.id === task.id);
+      if (fullTask) setTaskDetailModal(fullTask);
     }).catch(() => setTaskDetailModal(task));
   }
 
@@ -1492,8 +1844,9 @@ export default function App() {
     try {
       await api.patch(`/users/${id}/role`, { role });
       await loadData();
+      addToast("Role updated", "success");
     } catch (err) {
-      setNotice(err.response?.data?.error || "Could not update role");
+      addToast(err.response?.data?.error || "Could not update role");
     }
   }
 
@@ -1502,9 +1855,14 @@ export default function App() {
     try {
       await api.delete(`/users/${id}`);
       await loadData();
+      addToast("Team member removed", "success");
     } catch (err) {
-      setNotice(err.response?.data?.error || "Could not remove team member");
+      addToast(err.response?.data?.error || "Could not remove team member");
     }
+  }
+
+  function handleProfileUpdate(updatedUser) {
+    setSession((prev) => ({ ...prev, user: updatedUser }));
   }
 
   if (!session || !user) return <AuthScreen onAuth={handleAuth} />;
@@ -1523,7 +1881,6 @@ export default function App() {
         />
       );
     }
-
     if (view === "project-detail" && selectedProject) {
       return (
         <ProjectDetailView
@@ -1542,7 +1899,6 @@ export default function App() {
         />
       );
     }
-
     if (view === "tasks") {
       return (
         <TasksView
@@ -1558,7 +1914,6 @@ export default function App() {
         />
       );
     }
-
     if (view === "team" && user.role === "ADMIN") {
       return (
         <TeamView
@@ -1571,7 +1926,6 @@ export default function App() {
         />
       );
     }
-
     return (
       <DashboardView
         user={user}
@@ -1586,26 +1940,51 @@ export default function App() {
 
   return (
     <div className="app-shell">
+      <button className="hamburger" onClick={() => setSidebarOpen(true)} aria-label="Open menu">
+        <Menu size={22} />
+      </button>
+
       <Sidebar
         user={user}
         view={view}
         projects={data.projects}
+        overdueTasks={overdueTasks}
         onNavigate={navigate}
         onOpenProject={openProject}
         onLogout={logout}
+        onOpenProfile={() => setProfileModal(true)}
+        mobileOpen={sidebarOpen}
+        onClose={() => setSidebarOpen(false)}
       />
 
       <main className="workspace">
-        {notice && (
-          <div className="notice">
-            <AlertTriangle size={17} />
-            <span>{notice}</span>
-            <button onClick={() => setNotice("")} aria-label="Dismiss"><X size={15} /></button>
-          </div>
-        )}
+        <div className="topbar-search-hint" onClick={() => setSearchOpen(true)}>
+          <Search size={15} />
+          <span>Search…</span>
+          <kbd>⌘K</kbd>
+        </div>
         {loading && <div className="loading-line" />}
         {content}
       </main>
+
+      {searchOpen && (
+        <GlobalSearch
+          tasks={data.tasks}
+          projects={data.projects}
+          onOpenProject={openProject}
+          onNavigate={navigate}
+          onViewDetail={openTaskDetail}
+          onClose={() => setSearchOpen(false)}
+        />
+      )}
+
+      {profileModal && (
+        <ProfileModal
+          user={user}
+          onClose={() => setProfileModal(false)}
+          onUpdate={handleProfileUpdate}
+        />
+      )}
 
       {projectModal && (
         <Modal title={projectModal.id ? "Edit project" : "Create project"} onClose={() => setProjectModal(null)}>
@@ -1649,6 +2028,8 @@ export default function App() {
           onClose={() => setTaskDetailModal(null)}
         />
       )}
+
+      <ToastContainer toasts={toasts} onRemove={removeToast} />
     </div>
   );
 }
