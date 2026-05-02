@@ -1169,7 +1169,7 @@ function TasksView({ user, tasks, projects, onCreate, onEdit, onDelete, onStatus
   );
 }
 
-function TeamView({ users, tasks, projects, onRoleChange }) {
+function TeamView({ users, tasks, projects, currentUser, onRoleChange, onDeleteUser }) {
   return (
     <section className="view">
       <Topbar
@@ -1183,6 +1183,7 @@ function TeamView({ users, tasks, projects, onRoleChange }) {
             const assigned = tasks.filter((task) => task.assigneeId === user.id);
             const done = assigned.filter((task) => task.status === "DONE").length;
             const userProjects = projects.filter((project) => project.members?.some((member) => member.id === user.id)).length;
+            const isSelf = user.id === currentUser.id;
             return (
               <article key={user.id} className="team-card">
                 <header>
@@ -1198,10 +1199,17 @@ function TeamView({ users, tasks, projects, onRoleChange }) {
                   <span><strong>{done}</strong> done</span>
                   <span><strong>{userProjects}</strong> projects</span>
                 </div>
-                <SelectField label="Role" value={user.role} onChange={(event) => onRoleChange(user.id, event.target.value)}>
-                  <option value="MEMBER">Member</option>
-                  <option value="ADMIN">Admin</option>
-                </SelectField>
+                <div className="team-card-actions">
+                  <SelectField label="Role" value={user.role} onChange={(event) => onRoleChange(user.id, event.target.value)}>
+                    <option value="MEMBER">Member</option>
+                    <option value="ADMIN">Admin</option>
+                  </SelectField>
+                  {!isSelf && (
+                    <Button variant="danger" size="sm" icon={Trash2} onClick={() => onDeleteUser(user.id, user.name)}>
+                      Remove
+                    </Button>
+                  )}
+                </div>
               </article>
             );
           })}
@@ -1420,6 +1428,16 @@ export default function App() {
     }
   }
 
+  async function deleteUser(id, name) {
+    if (!window.confirm(`Remove "${name}" from the team? Their tasks will be unassigned and they will lose access.`)) return;
+    try {
+      await api.delete(`/users/${id}`);
+      await loadData();
+    } catch (err) {
+      setNotice(err.response?.data?.error || "Could not remove team member");
+    }
+  }
+
   if (!session || !user) return <AuthScreen onAuth={handleAuth} />;
 
   const content = (() => {
@@ -1478,7 +1496,9 @@ export default function App() {
           users={data.users}
           tasks={data.tasks}
           projects={data.projects}
+          currentUser={user}
           onRoleChange={updateRole}
+          onDeleteUser={deleteUser}
         />
       );
     }

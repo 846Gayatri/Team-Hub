@@ -196,7 +196,7 @@ button {
   padding: 20px;
 }
 
-.sidebar-brand > span {
+.sidebar-brand>span {
   width: 42px;
   height: 42px;
   display: grid;
@@ -517,7 +517,7 @@ button {
   color: var(--muted);
 }
 
-.progress-row > div {
+.progress-row>div {
   min-width: 120px;
   text-align: right;
 }
@@ -549,7 +549,7 @@ button {
 }
 
 .team-load article,
-.member-list > div {
+.member-list>div {
   display: flex;
   gap: 10px;
   align-items: center;
@@ -913,7 +913,7 @@ button {
   gap: 7px;
 }
 
-.field > span {
+.field>span {
   color: var(--muted);
   font-size: 12px;
   font-weight: 900;
@@ -1120,8 +1120,13 @@ button {
 }
 
 @keyframes load {
-  from { background-position: 0 0; }
-  to { background-position: 200% 0; }
+  from {
+    background-position: 0 0;
+  }
+
+  to {
+    background-position: 200% 0;
+  }
 }
 
 /* 
@@ -1134,6 +1139,7 @@ button {
   z-index: 0;
   pointer-events: none;
 }
+
 .auth-orb {
   position: absolute;
   border-radius: 50%;
@@ -1141,6 +1147,7 @@ button {
   opacity: 0.5;
   animation: float 20s infinite ease-in-out alternate;
 }
+
 .auth-orb-1 {
   width: 400px;
   height: 400px;
@@ -1149,6 +1156,7 @@ button {
   left: -100px;
   animation-delay: 0s;
 }
+
 .auth-orb-2 {
   width: 300px;
   height: 300px;
@@ -1157,6 +1165,7 @@ button {
   right: -50px;
   animation-delay: -5s;
 }
+
 .auth-orb-3 {
   width: 250px;
   height: 250px;
@@ -1166,12 +1175,19 @@ button {
   animation-delay: -10s;
   opacity: 0.3;
 }
+
 @keyframes float {
-  0% { transform: translate(0, 0) scale(1); }
-  100% { transform: translate(30px, 50px) scale(1.1); }
+  0% {
+    transform: translate(0, 0) scale(1);
+  }
+
+  100% {
+    transform: translate(30px, 50px) scale(1.1);
+  }
 }
 
-.auth-panel, .auth-card {
+.auth-panel,
+.auth-card {
   position: relative;
   z-index: 10;
 }
@@ -1191,11 +1207,13 @@ button {
   margin: 30px 0 40px;
   max-width: 500px;
 }
+
 .auth-feature {
   display: flex;
   gap: 16px;
   align-items: center;
 }
+
 .auth-feature-icon {
   width: 44px;
   height: 44px;
@@ -1206,11 +1224,13 @@ button {
   color: var(--cyan);
   border: 1px solid rgba(255, 255, 255, 0.08);
 }
+
 .auth-feature strong {
   display: block;
   font-size: 16px;
   margin-bottom: 2px;
 }
+
 .auth-feature small {
   color: var(--muted);
   font-size: 14px;
@@ -1229,14 +1249,17 @@ button {
   text-align: center;
   margin-bottom: 28px;
 }
+
 .auth-card-header svg {
   color: var(--cyan);
   margin-bottom: 12px;
 }
+
 .auth-card-header h2 {
   font-size: 24px;
   margin: 0 0 8px;
 }
+
 .auth-card-header p {
   color: var(--muted);
   margin: 0;
@@ -1256,6 +1279,7 @@ button {
   color: var(--muted);
   font-size: 14px;
 }
+
 .auth-switch button {
   background: none;
   border: none;
@@ -1264,6 +1288,7 @@ button {
   margin-left: 6px;
   cursor: pointer;
 }
+
 .auth-switch button:hover {
   text-decoration: underline;
 }
@@ -1286,6 +1311,7 @@ button {
   font-size: 12px;
   color: var(--success);
 }
+
 .completion-note-preview {
   color: var(--muted);
   font-style: italic;
@@ -1295,21 +1321,26 @@ button {
 .completion-modal {
   width: min(540px, calc(100vw - 24px)) !important;
 }
+
 .completion-header {
   background: rgba(34, 197, 94, 0.08);
   border-bottom-color: rgba(34, 197, 94, 0.2) !important;
 }
+
 .completion-title-row {
   display: flex;
   align-items: center;
   gap: 16px;
 }
+
 .completion-title-row h2 {
   margin: 0 0 2px !important;
 }
+
 .completion-title-row small {
   color: var(--success);
 }
+
 .completion-icon {
   width: 42px;
   height: 42px;
@@ -1326,10 +1357,12 @@ button {
   background: rgba(0, 0, 0, 0.15);
   border-bottom: 1px solid var(--border);
 }
+
 .completion-task-info h3 {
   margin: 0 0 10px;
   font-size: 16px;
 }
+
 .completion-status-flow {
   display: flex;
   align-items: center;
@@ -1349,6 +1382,7 @@ button {
   align-items: center;
   padding: 20px 20px 0;
 }
+
 .completion-step {
   display: flex;
   align-items: center;
@@ -1357,9 +1391,11 @@ button {
   font-size: 13px;
   font-weight: 600;
 }
+
 .completion-step.active {
   color: var(--text);
 }
+
 .step-marker {
   width: 24px;
   height: 24px;
@@ -1370,10 +1406,12 @@ button {
   color: inherit;
   font-size: 12px;
 }
+
 .completion-step.active .step-marker {
   background: var(--primary);
   color: #fff;
 }
+
 .step-line {
   flex: 1;
   height: 1px;
@@ -1387,6 +1425,7 @@ button {
   gap: 16px;
   animation: slideIn 0.3s ease-out;
 }
+
 .completion-hint {
   display: flex;
   gap: 8px;
@@ -1416,10 +1455,12 @@ button {
   padding: 24px;
   border-bottom: 1px solid var(--border);
 }
+
 .task-detail-header h3 {
   font-size: 22px;
   margin: 16px 0;
 }
+
 .task-detail-desc {
   color: var(--muted);
   line-height: 1.6;
@@ -1432,19 +1473,23 @@ button {
   border-bottom: 1px solid var(--border);
   background: rgba(34, 197, 94, 0.05);
 }
+
 .completion-note-full {
   display: flex;
   gap: 12px;
   color: var(--text);
 }
+
 .completion-note-full svg {
   color: var(--success);
   margin-top: 2px;
 }
+
 .completion-note-full p {
   margin: 0 0 6px;
   line-height: 1.5;
 }
+
 .completion-note-full small {
   color: var(--muted);
 }
@@ -1456,11 +1501,13 @@ button {
 .comment-form {
   margin-bottom: 24px;
 }
+
 .comment-type-pills {
   display: flex;
   gap: 8px;
   margin-bottom: 12px;
 }
+
 .comment-type-pills button {
   padding: 6px 12px;
   border-radius: 999px;
@@ -1473,15 +1520,18 @@ button {
   color: var(--muted);
   cursor: pointer;
 }
+
 .comment-type-pills button.active {
   background: var(--surface-3);
   color: var(--text);
 }
+
 .comment-input-row {
   display: flex;
   gap: 12px;
   align-items: center;
 }
+
 .comment-input-row input {
   flex: 1;
   min-height: 42px;
@@ -1492,6 +1542,7 @@ button {
   color: var(--text);
   outline: none;
 }
+
 .comment-input-row input:focus {
   border-color: var(--primary);
   background: rgba(255, 255, 255, 0.08);
@@ -1501,10 +1552,12 @@ button {
   display: grid;
   gap: 20px;
 }
+
 .comment-item {
   display: flex;
   gap: 14px;
 }
+
 .comment-body {
   flex: 1;
   background: rgba(255, 255, 255, 0.04);
@@ -1512,24 +1565,29 @@ button {
   border-radius: 12px;
   padding: 14px;
 }
+
 .comment-item.comment-proof .comment-body {
   background: rgba(34, 211, 238, 0.05);
   border-color: rgba(34, 211, 238, 0.2);
 }
+
 .comment-item.comment-completion .comment-body {
   background: rgba(34, 197, 94, 0.05);
   border-color: rgba(34, 197, 94, 0.2);
 }
+
 .comment-meta {
   display: flex;
   align-items: center;
   gap: 10px;
   margin-bottom: 8px;
 }
+
 .comment-meta small {
   color: var(--muted);
   margin-left: auto;
 }
+
 .comment-body p {
   margin: 0;
   color: var(--text);
@@ -1537,6 +1595,7 @@ button {
   white-space: pre-wrap;
   font-size: 14px;
 }
+
 .comment-type-tag {
   font-size: 10px;
   font-weight: 800;
@@ -1544,9 +1603,21 @@ button {
   padding: 2px 6px;
   border-radius: 4px;
 }
-.tag-proof { background: rgba(34, 211, 238, 0.15); color: var(--cyan); }
-.tag-completion { background: rgba(34, 197, 94, 0.15); color: var(--success); }
-.tag-status_change { background: rgba(255, 255, 255, 0.1); color: var(--muted); }
+
+.tag-proof {
+  background: rgba(34, 211, 238, 0.15);
+  color: var(--cyan);
+}
+
+.tag-completion {
+  background: rgba(34, 197, 94, 0.15);
+  color: var(--success);
+}
+
+.tag-status_change {
+  background: rgba(255, 255, 255, 0.1);
+  color: var(--muted);
+}
 
 .no-comments {
   text-align: center;
@@ -1662,4 +1733,20 @@ button {
   .role-cards {
     grid-template-columns: 1fr;
   }
+}
+
+.team-card-actions {
+  display: flex;
+  align-items: flex-end;
+  gap: 10px;
+  margin-top: 4px;
+}
+
+.team-card-actions .field {
+  flex: 1;
+}
+
+.team-card-actions .button-danger {
+  margin-bottom: 2px;
+  white-space: nowrap;
 }

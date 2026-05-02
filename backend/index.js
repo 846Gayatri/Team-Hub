@@ -439,6 +439,40 @@ app.get('/api/v1/users', authenticate, requireAdmin, (req, res) => {
   res.json(listUsers());
 });
 
+app.delete('/api/v1/users/:id', authenticate, requireAdmin, (req, res) => {
+  const id = parseId(req.params.id, 'User id');
+  const target = getUser(id);
+  if (!target) return sendError(res, 404, 'User not found');
+
+  // Prevent deleting yourself
+  if (id === req.user.id) return sendError(res, 400, 'You cannot delete your own account');
+
+  // Prevent deleting the last admin
+  if (target.role === 'ADMIN') {
+    const otherAdmins = db.prepare('SELECT COUNT(*) AS count FROM users WHERE role = ? AND id != ?').get('ADMIN', id).count;
+    if (otherAdmins === 0) return sendError(res, 400, 'Cannot delete the last admin');
+  }
+
+  db.exec('BEGIN');
+  try {
+    // Transfer project ownership to the requesting admin
+    db.prepare('UPDATE projects SET ownerId = ?, updatedAt = ? WHERE ownerId = ?').run(req.user.id, now(), id);
+    // Unassign tasks from this user
+    db.prepare('UPDATE tasks SET assigneeId = NULL, updatedAt = ? WHERE assigneeId = ?').run(now(), id);
+    // Remove from project memberships
+    db.prepare('DELETE FROM project_members WHERE userId = ?').run(id);
+    // Delete comments by this user
+    db.prepare('DELETE FROM task_comments WHERE userId = ?').run(id);
+    // Delete the user
+    db.prepare('DELETE FROM users WHERE id = ?').run(id);
+    db.exec('COMMIT');
+    res.json({ success: true });
+  } catch (error) {
+    db.exec('ROLLBACK');
+    throw error;
+  }
+});
+
 app.patch('/api/v1/users/:id/role', authenticate, requireAdmin, (req, res) => {
   const id = parseId(req.params.id, 'User id');
   const role = normalizeRole(req.body.role);
@@ -719,25 +753,26 @@ app.get('/api/v1/dashboard', authenticate, (req, res) => {
   });
 });
 
+// Serve frontend — MUST come before error handler
+const frontendDist = path.join(__dirname, '..', 'frontend', 'dist');
+if (fs.existsSync(frontendDist)) {
+  app.use(express.static(frontendDist));
+  app.get('{*path}', (req, res) => {
+    if (req.path.startsWith('/api/')) return res.status(404).json({ error: 'Not found' });
+    res.sendFile(path.join(frontendDist, 'index.html'));
+  });
+} else {
+  app.get('/', (req, res) => {
+    res.send('TeamHub API is running. Frontend build not found. Run: npm run build');
+  });
+}
+
 app.use((err, req, res, next) => {
   if (res.headersSent) return next(err);
   const status = err.status || 500;
   if (status === 500) console.error(err);
   return sendError(res, status, status === 500 ? 'Unexpected server error' : err.message);
 });
-
-// Serve frontend
-const frontendDist = path.join(__dirname, '..', 'frontend', 'dist');
-if (fs.existsSync(frontendDist)) {
-  app.use(express.static(frontendDist));
-  app.get('*', (req, res) => {
-    res.sendFile(path.join(frontendDist, 'index.html'));
-  });
-} else {
-  app.get('/', (req, res) => {
-    res.send('TeamHub API is running. Frontend build not found.');
-  });
-}
 
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`TeamHub API running on port ${PORT}`);
