@@ -1721,20 +1721,26 @@ export default function App() {
     if (session?.token) {
       api.defaults.headers.common.Authorization = `Bearer ${session.token}`;
       window.history.replaceState(null, "", session.user.role === "ADMIN" ? "/admin" : "/member");
-      api.get("/auth/me").then((res) => {
-        setSession((prev) => prev ? { ...prev, user: res.data.user } : prev);
-        localStorage.setItem("user", JSON.stringify(res.data.user));
-      }).catch((err) => {
-        if (err.response?.status === 401) {
-          localStorage.removeItem("token");
-          localStorage.removeItem("user");
-          setSession(null);
-        }
-      });
     } else {
       delete api.defaults.headers.common.Authorization;
       window.history.replaceState(null, "", "/");
     }
+  }, [session]);
+
+  useEffect(() => {
+    const stored = readSession();
+    if (!stored?.token) return;
+    api.defaults.headers.common.Authorization = `Bearer ${stored.token}`;
+    api.get("/auth/me").then((res) => {
+      setSession((prev) => prev ? { ...prev, user: res.data.user } : prev);
+      localStorage.setItem("user", JSON.stringify(res.data.user));
+    }).catch((err) => {
+      if (err.response?.status === 401) {
+        localStorage.removeItem("token");
+        localStorage.removeItem("user");
+        setSession(null);
+      }
+    });
   }, []);
 
   useEffect(() => {
