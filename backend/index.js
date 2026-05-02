@@ -2,6 +2,14 @@ require('dotenv').config();
 
 const fs = require('fs');
 const path = require('path');
+
+// Verify Node.js version supports node:sqlite
+const [major] = process.versions.node.split('.').map(Number);
+if (major < 22) {
+  console.error(`FATAL: Node.js ${process.versions.node} detected. node:sqlite requires Node.js >= 22.5.0`);
+  process.exit(1);
+}
+
 const { DatabaseSync } = require('node:sqlite');
 const bcrypt = require('bcrypt');
 const cors = require('cors');
@@ -786,4 +794,5 @@ app.use((err, req, res, next) => {
 
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`TeamHub API running on port ${PORT}`);
+  console.log(`Node.js ${process.versions.node} | Frontend: ${fs.existsSync(frontendDist) ? 'OK' : 'NOT FOUND'}`);
 });
