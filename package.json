@@ -1,15 +1,13 @@
 {
   "name": "team-hub-root",
   "version": "1.0.0",
-  "workspaces": [
-    "frontend",
-    "backend"
-  ],
+  "private": true,
   "scripts": {
-    "build": "npm run build --workspace=frontend",
+    "install:all": "cd backend && npm install && cd ../frontend && npm install",
+    "build": "cd frontend && npm run build",
     "start": "node backend/index.js"
   },
   "engines": {
-    "node": "22.x"
+    "node": ">=22.5.0"
   }
 }
