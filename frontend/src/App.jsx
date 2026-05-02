@@ -252,22 +252,33 @@ function AuthScreen({ onAuth }) {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const googleBtnRef = useRef(null);
+  const googleInitRef = useRef(false);
   const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID;
 
   const set = (key, value) => setForm((current) => ({ ...current, [key]: value }));
 
+  const switchMode = (next) => {
+    setMode(next);
+    setError("");
+    setForm((f) => ({ ...f, password: "" }));
+  };
+
   const chooseRole = (role) => {
-    setMode("signup");
+    switchMode("signup");
     set("role", role);
   };
 
   useEffect(() => {
-    if (!GOOGLE_CLIENT_ID || !window.google?.accounts?.id) return;
-    window.google.accounts.id.initialize({
-      client_id: GOOGLE_CLIENT_ID,
-      callback: handleGoogleCredential,
-    });
-    if (googleBtnRef.current) {
+    if (!GOOGLE_CLIENT_ID) return;
+
+    function initGIS() {
+      if (!window.google?.accounts?.id || !googleBtnRef.current) return;
+      if (googleInitRef.current) return;
+      googleInitRef.current = true;
+      window.google.accounts.id.initialize({
+        client_id: GOOGLE_CLIENT_ID,
+        callback: handleGoogleCredential,
+      });
       window.google.accounts.id.renderButton(googleBtnRef.current, {
         theme: "filled_black",
         size: "large",
@@ -276,6 +287,18 @@ function AuthScreen({ onAuth }) {
         text: "continue_with",
       });
     }
+
+    if (window.google?.accounts?.id) {
+      initGIS();
+    } else {
+      window.onGoogleLibraryLoad = initGIS;
+    }
+
+    return () => {
+      if (window.onGoogleLibraryLoad === initGIS) {
+        window.onGoogleLibraryLoad = null;
+      }
+    };
   }, [GOOGLE_CLIENT_ID]);
 
   async function handleGoogleCredential(response) {
@@ -390,11 +413,11 @@ function AuthScreen({ onAuth }) {
         <div className="auth-divider"><span>or</span></div>
 
         <div className="segmented">
-          <button className={mode === "login" ? "active" : ""} onClick={() => setMode("login")} type="button">
+          <button className={mode === "login" ? "active" : ""} onClick={() => switchMode("login")} type="button">
             <LogIn size={15} />
             Login
           </button>
-          <button className={mode === "signup" ? "active" : ""} onClick={() => setMode("signup")} type="button">
+          <button className={mode === "signup" ? "active" : ""} onClick={() => switchMode("signup")} type="button">
             <UserRound size={15} />
             Sign up
           </button>
@@ -409,13 +432,13 @@ function AuthScreen({ onAuth }) {
 
           {error && <div className="form-alert"><AlertTriangle size={14} />{error}</div>}
 
-          <Button type="submit" className="auth-submit-btn" icon={mode === "login" ? ArrowRight : Save} disabled={loading}>
+          <Button type="submit" style={{ width: "100%", marginTop: "6px" }} icon={mode === "login" ? ArrowRight : Save} disabled={loading}>
             {loading ? "Please wait…" : mode === "login" ? "Sign in" : "Create account"}
           </Button>
 
           <p className="auth-switch">
             {mode === "login" ? "Don't have an account?" : "Already have an account?"}
-            <button type="button" onClick={() => setMode(mode === "login" ? "signup" : "login")}>
+            <button type="button" onClick={() => switchMode(mode === "login" ? "signup" : "login")}>
               {mode === "login" ? "Sign up" : "Log in"}
             </button>
           </p>

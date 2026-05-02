@@ -429,9 +429,15 @@ app.post('/api/v1/auth/login', asyncRoute(async (req, res) => {
   const password = String(req.body.password || '');
   const row = db.prepare('SELECT * FROM users WHERE email = ?').get(email);
 
-  if (!row || !(await bcrypt.compare(password, row.password))) {
-    return sendError(res, 401, 'Invalid credentials');
+  if (!row) return sendError(res, 401, 'Invalid credentials');
+
+  // Google-only accounts have no password hash — direct them to Google Sign-In
+  if (!row.password) {
+    return sendError(res, 401, 'This account was created with Google. Please use "Continue with Google" to sign in.');
   }
+
+  const match = await bcrypt.compare(password, row.password).catch(() => false);
+  if (!match) return sendError(res, 401, 'Invalid credentials');
 
   const user = publicUser(row);
   res.json({ token: createToken(user), user });

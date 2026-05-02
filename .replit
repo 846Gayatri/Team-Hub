@@ -12,6 +12,7 @@ channel = "stable-25_05"
 PORT = "3000"
 JWT_SECRET = "teamhub-dev-secret-change-before-deploy"
 SQLITE_PATH = "./data/teamhub.db"
+VITE_GOOGLE_CLIENT_ID = "404424116320-070e2n40008ibqmvrl200jcrfjtrjt9g.apps.googleusercontent.com"
 
 [workflows]
 runButton = "Project"
