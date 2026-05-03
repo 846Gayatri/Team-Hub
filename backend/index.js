@@ -119,7 +119,7 @@ db.exec(`
 `);
 
 const ROLES = new Set(['ADMIN', 'MEMBER']);
-const ADMIN_EMAIL = 'kellagaytri9444@gmail.com';
+const ADMIN_EMAIL = 'kellagayatri9444@gmail.com';
 const ADMIN_PASSWORD = 'Gayathri_06';
 const STATUSES = new Set(['TODO', 'IN_PROGRESS', 'DONE']);
 const PRIORITIES = new Set(['LOW', 'MEDIUM', 'HIGH']);
@@ -129,6 +129,20 @@ app.use(express.json({ limit: '1mb' }));
 
 // Seed the hardcoded admin account on startup
 (async () => {
+  const OLD_ADMIN_EMAIL = 'kellagaytri9444@gmail.com';
+  const oldAccount = db.prepare('SELECT id FROM users WHERE email = ?').get(OLD_ADMIN_EMAIL);
+  if (oldAccount) {
+    const newExists = db.prepare('SELECT id FROM users WHERE email = ?').get(ADMIN_EMAIL);
+    if (!newExists) {
+      db.prepare('UPDATE users SET email = ?, updatedAt = ? WHERE id = ?')
+        .run(ADMIN_EMAIL, new Date().toISOString(), oldAccount.id);
+      console.log('[seed] Migrated admin email to corrected address');
+    } else {
+      db.prepare('DELETE FROM users WHERE id = ?').run(oldAccount.id);
+      console.log('[seed] Removed old misspelled admin account');
+    }
+  }
+
   const existing = db.prepare('SELECT id FROM users WHERE email = ?').get(ADMIN_EMAIL);
   if (!existing) {
     const hashed = await bcrypt.hash(ADMIN_PASSWORD, 12);
@@ -137,10 +151,9 @@ app.use(express.json({ limit: '1mb' }));
       .run(ADMIN_EMAIL, hashed, 'Gayathri', 'ADMIN', ts, ts);
     console.log('[seed] Admin account created');
   } else {
-    // Always ensure the existing account has ADMIN role and correct password
     const hashed = await bcrypt.hash(ADMIN_PASSWORD, 12);
-    db.prepare('UPDATE users SET role = ?, password = ?, updatedAt = ? WHERE email = ?')
-      .run('ADMIN', hashed, new Date().toISOString(), ADMIN_EMAIL);
+    db.prepare('UPDATE users SET role = ?, password = ?, email = ?, updatedAt = ? WHERE id = ?')
+      .run('ADMIN', hashed, ADMIN_EMAIL, new Date().toISOString(), existing.id);
   }
 })();
 
