@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import axios from "axios";
 import {
+  Activity,
   AlertTriangle,
   ArrowRight,
   BarChart3,
@@ -1559,9 +1560,58 @@ function ProjectsView({ user, projects, tasks, onCreate, onEdit, onDelete, onOpe
   );
 }
 
+const ACTIVITY_META = {
+  task_created:        { Icon: Plus,         tone: "success", verb: "created task" },
+  task_updated:        { Icon: Pencil,        tone: "info",    verb: "updated task" },
+  task_status_DONE:    { Icon: CheckCircle2,  tone: "success", verb: "completed" },
+  task_status_IN_PROGRESS: { Icon: CircleDot, tone: "info",   verb: "started work on" },
+  task_status_TODO:    { Icon: Circle,        tone: "neutral", verb: "moved back to To Do" },
+  task_deleted:        { Icon: Trash2,        tone: "danger",  verb: "deleted task" },
+};
+
+function ActivityItem({ item }) {
+  const meta = ACTIVITY_META[item.action] || { Icon: Activity, tone: "neutral", verb: item.action };
+  const { Icon, tone, verb } = meta;
+  const when = (() => {
+    const diff = Date.now() - new Date(item.createdAt).getTime();
+    const mins = Math.floor(diff / 60000);
+    if (mins < 1) return "just now";
+    if (mins < 60) return `${mins}m ago`;
+    const hrs = Math.floor(mins / 60);
+    if (hrs < 24) return `${hrs}h ago`;
+    return `${Math.floor(hrs / 24)}d ago`;
+  })();
+  return (
+    <div className="activity-item">
+      <div className={`activity-dot activity-dot--${tone}`}>
+        <Icon size={14} />
+      </div>
+      <div className="activity-content">
+        <p className="activity-text">
+          <strong>{item.userName}</strong>{" "}
+          <span>{verb}</span>
+          {item.taskTitle && <>{" "}<span className="activity-task-name">"{item.taskTitle}"</span></>}
+        </p>
+        <span className="activity-meta">{when}</span>
+      </div>
+    </div>
+  );
+}
+
 function ProjectDetailView({ user, project, tasks, onBack, onCreateTask, onEditProject, onDeleteProject, onEditTask, onDeleteTask, onStatus, onViewDetail, onMarkDone, onSearch }) {
   const [filter, setFilter] = useState("ALL");
   const [viewType, setViewType] = useState("list");
+  const [activity, setActivity] = useState([]);
+  const [activityLoading, setActivityLoading] = useState(true);
+
+  useEffect(() => {
+    setActivityLoading(true);
+    api.get(`/projects/${project.id}/activity`)
+      .then((r) => setActivity(r.data))
+      .catch(() => setActivity([]))
+      .finally(() => setActivityLoading(false));
+  }, [project.id]);
+
   const projectTasks = tasks.filter((task) => task.projectId === project.id);
   const metrics = projectMetrics(project, tasks);
   const filteredTasks = projectTasks.filter((task) => {
@@ -1675,6 +1725,21 @@ function ProjectDetailView({ user, project, tasks, onBack, onCreateTask, onEditP
             onViewDetail={onViewDetail}
             onMarkDone={onMarkDone}
           />
+        )}
+      </section>
+
+      <section className="panel activity-panel">
+        <div className="panel-heading">
+          <h2><Activity size={15} style={{ marginRight: 6, verticalAlign: "middle" }} />Activity</h2>
+        </div>
+        {activityLoading ? (
+          <div className="activity-loading"><LoaderCircle size={18} className="spin" /> Loading activity…</div>
+        ) : activity.length === 0 ? (
+          <EmptyState title="No activity yet" text="Task changes in this project will appear here." />
+        ) : (
+          <div className="activity-timeline">
+            {activity.map((item) => <ActivityItem key={item.id} item={item} />)}
+          </div>
         )}
       </section>
     </section>

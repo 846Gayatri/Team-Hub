@@ -95,6 +95,18 @@ db.exec(`
     FOREIGN KEY (userId) REFERENCES users(id) ON DELETE CASCADE
   );
 
+  CREATE TABLE IF NOT EXISTS activity_log (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    projectId INTEGER NOT NULL,
+    userId INTEGER NOT NULL,
+    action TEXT NOT NULL,
+    taskId INTEGER,
+    taskTitle TEXT,
+    createdAt TEXT NOT NULL,
+    FOREIGN KEY (projectId) REFERENCES projects(id) ON DELETE CASCADE,
+    FOREIGN KEY (userId) REFERENCES users(id) ON DELETE CASCADE
+  );
+
   CREATE TABLE IF NOT EXISTS password_reset_tokens (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     userId INTEGER NOT NULL,
@@ -134,6 +146,17 @@ app.use(express.json({ limit: '1mb' }));
 
 function now() {
   return new Date().toISOString();
+}
+
+function logActivity(projectId, userId, action, taskId = null, taskTitle = null) {
+  try {
+    db.prepare(`
+      INSERT INTO activity_log (projectId, userId, action, taskId, taskTitle, createdAt)
+      VALUES (?, ?, ?, ?, ?, ?)
+    `).run(projectId, userId, action, taskId, taskTitle, now());
+  } catch (e) {
+    console.error('[activity] Failed to log:', e.message);
+  }
 }
 
 function asyncRoute(handler) {
@@ -777,6 +800,7 @@ app.post('/api/v1/tasks', authenticate, (req, res) => {
   `).run(title, description, status, priority, dueDate, projectId, assigneeId, timestamp, timestamp);
 
   if (assigneeId) addProjectMember(projectId, assigneeId);
+  logActivity(projectId, req.user.id, 'task_created', Number(result.lastInsertRowid), title);
   res.status(201).json(listTasks(req.user).find((task) => task.id === Number(result.lastInsertRowid)));
 });
 
@@ -791,12 +815,14 @@ app.put('/api/v1/tasks/:id', authenticate, requireAdmin, (req, res) => {
   const assigneeId = req.body.assigneeId === undefined ? task.assigneeId : parseOptionalId(req.body.assigneeId, 'Assignee id');
   if (assigneeId && !getUser(assigneeId)) return sendError(res, 400, 'Assignee does not exist');
 
+  const newTitle = req.body.title === undefined ? task.title : requireText(req.body.title, 'Task title', 160);
+
   db.prepare(`
     UPDATE tasks
     SET title = ?, description = ?, status = ?, priority = ?, dueDate = ?, projectId = ?, assigneeId = ?, updatedAt = ?
     WHERE id = ?
   `).run(
-    req.body.title === undefined ? task.title : requireText(req.body.title, 'Task title', 160),
+    newTitle,
     req.body.description === undefined ? task.description : optionalText(req.body.description),
     req.body.status === undefined ? task.status : normalizeStatus(req.body.status),
     req.body.priority === undefined ? task.priority : normalizePriority(req.body.priority),
@@ -808,6 +834,7 @@ app.put('/api/v1/tasks/:id', authenticate, requireAdmin, (req, res) => {
   );
 
   if (assigneeId) addProjectMember(nextProjectId, assigneeId);
+  logActivity(nextProjectId, req.user.id, 'task_updated', id, newTitle);
   res.json(listTasks(req.user).find((item) => item.id === id));
 });
 
@@ -845,6 +872,7 @@ app.patch('/api/v1/tasks/:id/status', authenticate, asyncRoute(async (req, res) 
       VALUES (?, ?, ?, 'status_change', ?)
     `).run(id, req.user.id, `Changed status from ${fromLabel} to ${toLabel}`, timestamp);
 
+    logActivity(task.projectId, req.user.id, `task_status_${status}`, id, task.title);
     db.exec('COMMIT');
   } catch (error) {
     db.exec('ROLLBACK');
@@ -891,9 +919,26 @@ app.post('/api/v1/tasks/:id/comments', authenticate, (req, res) => {
 
 app.delete('/api/v1/tasks/:id', authenticate, requireAdmin, (req, res) => {
   const id = parseId(req.params.id, 'Task id');
-  if (!getTask(id)) return sendError(res, 404, 'Task not found');
+  const taskToDelete = getTask(id);
+  if (!taskToDelete) return sendError(res, 404, 'Task not found');
+  logActivity(taskToDelete.projectId, req.user.id, 'task_deleted', id, taskToDelete.title);
   db.prepare('DELETE FROM tasks WHERE id = ?').run(id);
   res.json({ success: true });
+});
+
+app.get('/api/v1/projects/:id/activity', authenticate, (req, res) => {
+  const projectId = parseId(req.params.id, 'Project id');
+  assertProjectVisible(req.user, projectId);
+  const rows = db.prepare(`
+    SELECT a.id, a.projectId, a.action, a.taskId, a.taskTitle, a.createdAt,
+           u.id as userId, u.name as userName
+    FROM activity_log a
+    JOIN users u ON a.userId = u.id
+    WHERE a.projectId = ?
+    ORDER BY a.createdAt DESC
+    LIMIT 50
+  `).all(projectId);
+  res.json(rows);
 });
 
 app.get('/api/v1/dashboard', authenticate, (req, res) => {
