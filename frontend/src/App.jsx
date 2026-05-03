@@ -1332,14 +1332,23 @@ function Sidebar({ user, view, projects, overdueTasks, selectedProjectId, onNavi
   );
 }
 
-function Topbar({ title, subtitle, action }) {
+function Topbar({ title, subtitle, action, onSearch }) {
   return (
     <header className="topbar">
       <div>
         <h1>{title}</h1>
         {subtitle && <p>{subtitle}</p>}
       </div>
-      {action}
+      <div className="topbar-right">
+        {onSearch && (
+          <div className="topbar-search-hint" onClick={onSearch}>
+            <Search size={15} />
+            <span>Search…</span>
+            <kbd>⌘K</kbd>
+          </div>
+        )}
+        {action}
+      </div>
     </header>
   );
 }
@@ -1383,7 +1392,7 @@ function AdminOnboarding({ onCreateProject, onOpenTeam }) {
   );
 }
 
-function DashboardView({ user, dashboard, tasks, projects, onOpenTask, onOpenProject, onOpenTeam, onCreateProject, dataLoaded }) {
+function DashboardView({ user, dashboard, tasks, projects, onOpenTask, onOpenProject, onOpenTeam, onCreateProject, dataLoaded, onSearch }) {
   const stats = dashboard?.stats || {};
   const myTasks = tasks.filter((task) => task.assigneeId === user.id);
   const focusTasks = user.role === "ADMIN"
@@ -1405,6 +1414,7 @@ function DashboardView({ user, dashboard, tasks, projects, onOpenTask, onOpenPro
       <Topbar
         title={user.role === "ADMIN" ? "Admin dashboard" : `Welcome, ${user.name}`}
         subtitle={user.role === "ADMIN" ? "Control tower for project delivery and team workload." : "Your assigned work, deadlines, and project progress."}
+        onSearch={onSearch}
       />
 
       {isNewAdmin ? (
@@ -1499,13 +1509,14 @@ function DashboardView({ user, dashboard, tasks, projects, onOpenTask, onOpenPro
   );
 }
 
-function ProjectsView({ user, projects, tasks, onCreate, onEdit, onDelete, onOpen }) {
+function ProjectsView({ user, projects, tasks, onCreate, onEdit, onDelete, onOpen, onSearch }) {
   return (
     <section className="view">
       <Topbar
         title="Projects"
         subtitle={user.role === "ADMIN" ? "Create projects, assign team members, and track delivery health." : "Projects you are part of or have assigned work in."}
         action={user.role === "ADMIN" && <Button icon={Plus} onClick={onCreate}>New project</Button>}
+        onSearch={onSearch}
       />
 
       {projects.length ? (
@@ -1548,7 +1559,7 @@ function ProjectsView({ user, projects, tasks, onCreate, onEdit, onDelete, onOpe
   );
 }
 
-function ProjectDetailView({ user, project, tasks, onBack, onCreateTask, onEditProject, onDeleteProject, onEditTask, onDeleteTask, onStatus, onViewDetail, onMarkDone }) {
+function ProjectDetailView({ user, project, tasks, onBack, onCreateTask, onEditProject, onDeleteProject, onEditTask, onDeleteTask, onStatus, onViewDetail, onMarkDone, onSearch }) {
   const [filter, setFilter] = useState("ALL");
   const [viewType, setViewType] = useState("list");
   const projectTasks = tasks.filter((task) => task.projectId === project.id);
@@ -1569,6 +1580,7 @@ function ProjectDetailView({ user, project, tasks, onBack, onCreateTask, onEditP
       <Topbar
         title={project.name}
         subtitle={project.description || "Project workspace"}
+        onSearch={onSearch}
         action={(
           <div className="topbar-actions">
             <Button icon={Plus} onClick={() => onCreateTask(project)}>Add task</Button>
@@ -1669,7 +1681,7 @@ function ProjectDetailView({ user, project, tasks, onBack, onCreateTask, onEditP
   );
 }
 
-function TasksView({ user, tasks, projects, onCreate, onEdit, onDelete, onStatus, onViewDetail, onMarkDone }) {
+function TasksView({ user, tasks, projects, onCreate, onEdit, onDelete, onStatus, onViewDetail, onMarkDone, onSearch }) {
   const [query, setQuery] = useState("");
   const [status, setStatus] = useState("ALL");
   const [projectId, setProjectId] = useState("ALL");
@@ -1699,6 +1711,7 @@ function TasksView({ user, tasks, projects, onCreate, onEdit, onDelete, onStatus
         title={user.role === "ADMIN" ? "Tasks" : "My tasks"}
         subtitle={user.role === "ADMIN" ? "Assign work, update status, and keep deadlines visible." : "Update your status and track assigned deliverables."}
         action={<Button icon={Plus} onClick={() => onCreate()}>New task</Button>}
+        onSearch={onSearch}
       />
 
       <div className="toolbar">
@@ -1763,12 +1776,13 @@ function TasksView({ user, tasks, projects, onCreate, onEdit, onDelete, onStatus
   );
 }
 
-function TeamView({ users, tasks, projects, currentUser, onRoleChange, onDeleteUser }) {
+function TeamView({ users, tasks, projects, currentUser, onRoleChange, onDeleteUser, onSearch }) {
   return (
     <section className="view">
       <Topbar
         title="Team"
         subtitle="Manage roles and understand how work is distributed."
+        onSearch={onSearch}
       />
 
       {users.length ? (
@@ -2125,6 +2139,7 @@ export default function App() {
           onEdit={setProjectModal}
           onDelete={deleteProject}
           onOpen={openProject}
+          onSearch={() => setSearchOpen(true)}
         />
       );
     }
@@ -2143,6 +2158,7 @@ export default function App() {
           onStatus={updateStatus}
           onViewDetail={openTaskDetail}
           onMarkDone={(task) => setCompletionModal(task)}
+          onSearch={() => setSearchOpen(true)}
         />
       );
     }
@@ -2158,6 +2174,7 @@ export default function App() {
           onStatus={updateStatus}
           onViewDetail={openTaskDetail}
           onMarkDone={(task) => setCompletionModal(task)}
+          onSearch={() => setSearchOpen(true)}
         />
       );
     }
@@ -2170,6 +2187,7 @@ export default function App() {
           currentUser={user}
           onRoleChange={updateRole}
           onDeleteUser={deleteUser}
+          onSearch={() => setSearchOpen(true)}
         />
       );
     }
@@ -2184,6 +2202,7 @@ export default function App() {
         onOpenTeam={() => navigate("team")}
         onCreateProject={() => setProjectModal({})}
         dataLoaded={data.dashboard !== null}
+        onSearch={() => setSearchOpen(true)}
       />
     );
   })();
@@ -2209,11 +2228,6 @@ export default function App() {
       />
 
       <main className="workspace">
-        <div className="topbar-search-hint" onClick={() => setSearchOpen(true)}>
-          <Search size={15} />
-          <span>Search…</span>
-          <kbd>⌘K</kbd>
-        </div>
         {loading && <div className="loading-line" />}
         {content}
       </main>
