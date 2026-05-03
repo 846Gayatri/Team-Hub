@@ -757,7 +757,12 @@ function AuthScreen({ onAuth, initialResetToken }) {
 
         <div className="role-cards-label"><span>Sign up as</span></div>
         <div className="role-cards" aria-label="Choose a role to sign up">
-          <button type="button" className={mode === "signup" ? "active" : ""} onClick={() => switchMode("signup")}>
+          <button type="button" className={mode === "signup" && form.role === "ADMIN" ? "active" : ""} onClick={() => { switchMode("signup"); set("role", "ADMIN"); }}>
+            <ShieldCheck size={20} />
+            <strong>Admin</strong>
+            <span>Manage projects, team &amp; tasks</span>
+          </button>
+          <button type="button" className={mode === "signup" && form.role === "MEMBER" ? "active" : ""} onClick={() => { switchMode("signup"); set("role", "MEMBER"); }}>
             <UserRound size={20} />
             <strong>Member</strong>
             <span>Track your assigned work</span>
@@ -774,8 +779,8 @@ function AuthScreen({ onAuth, initialResetToken }) {
               ? "Sign in to your workspace"
               : (
                 <span className="auth-role-badge">
-                  <UserRound size={13} />
-                  Signing up as Member
+                  {form.role === "ADMIN" ? <ShieldCheck size={13} /> : <UserRound size={13} />}
+                  Signing up as {form.role === "ADMIN" ? "Admin" : "Member"}
                 </span>
               )}
           </p>
