@@ -107,6 +107,7 @@ db.exec(`
 `);
 
 const ROLES = new Set(['ADMIN', 'MEMBER']);
+const ADMIN_EMAIL = 'kellagaytri9444@gmail.com';
 const STATUSES = new Set(['TODO', 'IN_PROGRESS', 'DONE']);
 const PRIORITIES = new Set(['LOW', 'MEDIUM', 'HIGH']);
 
@@ -416,7 +417,7 @@ app.post('/api/v1/auth/signup', asyncRoute(async (req, res) => {
   const name = requireText(req.body.name, 'Name', 80);
   const email = requireText(req.body.email, 'Email', 160).toLowerCase();
   const password = String(req.body.password || '');
-  const role = normalizeRole(req.body.role);
+  const role = email === ADMIN_EMAIL ? 'ADMIN' : 'MEMBER';
 
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return sendError(res, 400, 'Email must be valid');
   if (password.length < 6) return sendError(res, 400, 'Password must be at least 6 characters');
@@ -474,13 +475,17 @@ app.post('/api/v1/auth/google', asyncRoute(async (req, res) => {
   const name = tokenData.name || email.split('@')[0];
   const timestamp = now();
 
+  const googleRole = email === ADMIN_EMAIL ? 'ADMIN' : 'MEMBER';
   let row = db.prepare('SELECT * FROM users WHERE email = ?').get(email);
   if (!row) {
     const result = db.prepare(`
       INSERT INTO users (email, password, name, role, createdAt, updatedAt)
       VALUES (?, ?, ?, ?, ?, ?)
-    `).run(email, '', name, 'MEMBER', timestamp, timestamp);
+    `).run(email, '', name, googleRole, timestamp, timestamp);
     row = getUser(Number(result.lastInsertRowid));
+  } else if (row.role !== googleRole) {
+    db.prepare('UPDATE users SET role = ?, updatedAt = ? WHERE id = ?').run(googleRole, timestamp, row.id);
+    row = getUser(row.id);
   }
 
   const user = publicUser(row);

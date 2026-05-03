@@ -532,11 +532,6 @@ function AuthScreen({ onAuth, initialResetToken }) {
     setForm((f) => ({ ...f, password: "" }));
   };
 
-  const chooseRole = (role) => {
-    switchMode("signup");
-    set("role", role);
-  };
-
   useEffect(() => {
     if (!GOOGLE_CLIENT_ID) return;
 
@@ -762,12 +757,7 @@ function AuthScreen({ onAuth, initialResetToken }) {
 
         <div className="role-cards-label"><span>Sign up as</span></div>
         <div className="role-cards" aria-label="Choose a role to sign up">
-          <button type="button" className={mode === "signup" && form.role === "ADMIN" ? "active" : ""} onClick={() => chooseRole("ADMIN")}>
-            <ShieldCheck size={20} />
-            <strong>Admin</strong>
-            <span>Manage projects, team &amp; tasks</span>
-          </button>
-          <button type="button" className={mode === "signup" && form.role === "MEMBER" ? "active" : ""} onClick={() => chooseRole("MEMBER")}>
+          <button type="button" className={mode === "signup" ? "active" : ""} onClick={() => switchMode("signup")}>
             <UserRound size={20} />
             <strong>Member</strong>
             <span>Track your assigned work</span>
@@ -784,8 +774,8 @@ function AuthScreen({ onAuth, initialResetToken }) {
               ? "Sign in to your workspace"
               : (
                 <span className="auth-role-badge">
-                  {form.role === "ADMIN" ? <ShieldCheck size={13} /> : <UserRound size={13} />}
-                  Signing up as {form.role === "ADMIN" ? "Admin" : "Member"}
+                  <UserRound size={13} />
+                  Signing up as Member
                 </span>
               )}
           </p>
