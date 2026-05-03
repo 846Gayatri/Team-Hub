@@ -1134,6 +1134,15 @@ button {
   margin-top: 2px;
 }
 
+.member-option-self {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.member-option-self input {
+  cursor: not-allowed;
+}
+
 .empty-state {
   min-height: 220px;
   display: grid;

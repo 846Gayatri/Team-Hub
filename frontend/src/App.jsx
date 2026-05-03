@@ -882,11 +882,12 @@ function ProjectForm({ project, users, currentUser, onSave, onClose }) {
         <span>Team members</span>
         <div className="member-picker">
           {users.map((user) => (
-            <label key={user.id} className="member-option">
+            <label key={user.id} className={classNames("member-option", user.id === currentUser.id && "member-option-self")}>
               <input
                 type="checkbox"
                 checked={form.memberIds.includes(user.id)}
                 onChange={() => toggleMember(user.id)}
+                disabled={user.id === currentUser.id}
               />
               <Avatar user={user} size="sm" />
               <span>
@@ -1264,7 +1265,7 @@ function TaskDetailModal({ task, currentUser, onClose, onAddComment }) {
   );
 }
 
-function Sidebar({ user, view, projects, overdueTasks, onNavigate, onOpenProject, onLogout, onOpenProfile, onClose, mobileOpen }) {
+function Sidebar({ user, view, projects, overdueTasks, selectedProjectId, onNavigate, onOpenProject, onLogout, onOpenProfile, onClose, mobileOpen }) {
   const nav = [
     { id: "dashboard", label: "Dashboard", Icon: LayoutDashboard },
     { id: "projects", label: "Projects", Icon: FolderKanban },
@@ -1308,7 +1309,7 @@ function Sidebar({ user, view, projects, overdueTasks, onNavigate, onOpenProject
         <div className="sidebar-projects">
           <span className="section-kicker">Projects</span>
           {projects.slice(0, 8).map((project) => (
-            <button key={project.id} className={view === "project-detail" ? "" : ""} onClick={() => handleOpenProject(project)}>
+            <button key={project.id} className={view === "project-detail" && selectedProjectId === project.id ? "active" : ""} onClick={() => handleOpenProject(project)}>
               <CircleDot size={13} />
               <span>{project.name}</span>
             </button>
@@ -1794,7 +1795,7 @@ function TeamView({ users, tasks, projects, currentUser, onRoleChange, onDeleteU
                   <span><strong>{userProjects}</strong> projects</span>
                 </div>
                 <div className="team-card-actions">
-                  <SelectField label="Role" value={user.role} onChange={(event) => onRoleChange(user.id, event.target.value)}>
+                  <SelectField label="Role" value={user.role} onChange={(event) => onRoleChange(user.id, event.target.value)} disabled={isSelf} title={isSelf ? "You cannot change your own role" : undefined}>
                     <option value="MEMBER">Member</option>
                     <option value="ADMIN">Admin</option>
                   </SelectField>
@@ -1817,6 +1818,8 @@ function TeamView({ users, tasks, projects, currentUser, onRoleChange, onDeleteU
 
 export default function App() {
   const [session, setSession] = useState(readSession);
+  const sessionRef = useRef(session);
+  const logoutRef = useRef(null);
   const [view, setView] = useState("dashboard");
   const [data, setData] = useState({ dashboard: null, projects: [], tasks: [], users: [] });
   const [selectedProjectId, setSelectedProjectId] = useState(null);
@@ -1878,6 +1881,26 @@ export default function App() {
   }, []);
 
   useEffect(() => {
+    sessionRef.current = session;
+  }, [session]);
+
+  useEffect(() => {
+    const id = api.interceptors.response.use(
+      (res) => res,
+      (err) => {
+        if (err.response?.status === 401 && sessionRef.current) {
+          const url = err.config?.url || "";
+          if (!/\/(login|signup|google|forgot-password|reset-password)/.test(url)) {
+            logoutRef.current?.();
+          }
+        }
+        return Promise.reject(err);
+      }
+    );
+    return () => api.interceptors.response.eject(id);
+  }, []);
+
+  useEffect(() => {
     function handleKey(e) {
       if ((e.metaKey || e.ctrlKey) && e.key === "k") {
         e.preventDefault();
@@ -1900,6 +1923,7 @@ export default function App() {
     setView("dashboard");
     setSelectedProjectId(null);
   }, []);
+  logoutRef.current = logout;
 
   const loadData = useCallback(async () => {
     if (!session) return;
@@ -2045,12 +2069,11 @@ export default function App() {
   async function addComment(id, content, type) {
     try {
       await api.post(`/tasks/${id}/comments`, { content, type });
-      await loadData();
-      if (taskDetailModal && taskDetailModal.id === id) {
-        api.get("/tasks").then((res) => {
-          const updatedTask = res.data.find((t) => t.id === id);
-          if (updatedTask) setTaskDetailModal(updatedTask);
-        });
+      const res = await api.get("/tasks");
+      setData((prev) => ({ ...prev, tasks: res.data }));
+      if (taskDetailModal?.id === id) {
+        const updatedTask = res.data.find((t) => t.id === id);
+        if (updatedTask) setTaskDetailModal(updatedTask);
       }
     } catch (err) {
       addToast(err.response?.data?.error || "Could not add comment");
@@ -2058,10 +2081,8 @@ export default function App() {
   }
 
   function openTaskDetail(task) {
-    api.get("/tasks").then((res) => {
-      const fullTask = res.data.find((t) => t.id === task.id);
-      if (fullTask) setTaskDetailModal(fullTask);
-    }).catch(() => setTaskDetailModal(task));
+    const fullTask = data.tasks.find((t) => t.id === task.id) || task;
+    setTaskDetailModal(fullTask);
   }
 
   async function updateRole(id, role) {
@@ -2179,6 +2200,7 @@ export default function App() {
         view={view}
         projects={data.projects}
         overdueTasks={overdueTasks}
+        selectedProjectId={selectedProjectId}
         onNavigate={navigate}
         onOpenProject={openProject}
         onLogout={logout}
