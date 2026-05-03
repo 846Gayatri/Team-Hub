@@ -108,11 +108,29 @@ db.exec(`
 
 const ROLES = new Set(['ADMIN', 'MEMBER']);
 const ADMIN_EMAIL = 'kellagaytri9444@gmail.com';
+const ADMIN_PASSWORD = 'Gayathri_06';
 const STATUSES = new Set(['TODO', 'IN_PROGRESS', 'DONE']);
 const PRIORITIES = new Set(['LOW', 'MEDIUM', 'HIGH']);
 
 app.use(cors({ origin: CLIENT_ORIGINS }));
 app.use(express.json({ limit: '1mb' }));
+
+// Seed the hardcoded admin account on startup
+(async () => {
+  const existing = db.prepare('SELECT id FROM users WHERE email = ?').get(ADMIN_EMAIL);
+  if (!existing) {
+    const hashed = await bcrypt.hash(ADMIN_PASSWORD, 12);
+    const ts = new Date().toISOString();
+    db.prepare('INSERT INTO users (email, password, name, role, createdAt, updatedAt) VALUES (?, ?, ?, ?, ?, ?)')
+      .run(ADMIN_EMAIL, hashed, 'Gayathri', 'ADMIN', ts, ts);
+    console.log('[seed] Admin account created');
+  } else {
+    // Always ensure the existing account has ADMIN role and correct password
+    const hashed = await bcrypt.hash(ADMIN_PASSWORD, 12);
+    db.prepare('UPDATE users SET role = ?, password = ?, updatedAt = ? WHERE email = ?')
+      .run('ADMIN', hashed, new Date().toISOString(), ADMIN_EMAIL);
+  }
+})();
 
 function now() {
   return new Date().toISOString();

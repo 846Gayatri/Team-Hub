@@ -755,14 +755,14 @@ function AuthScreen({ onAuth, initialResetToken }) {
           </div>
         </div>
 
-        <div className="role-cards-label"><span>Sign up as</span></div>
-        <div className="role-cards" aria-label="Choose a role to sign up">
-          <button type="button" className={mode === "signup" && form.role === "ADMIN" ? "active" : ""} onClick={() => { switchMode("signup"); set("role", "ADMIN"); }}>
+        <div className="role-cards-label"><span>Continue as</span></div>
+        <div className="role-cards" aria-label="Choose a role">
+          <button type="button" className={form.role === "ADMIN" ? "active" : ""} onClick={() => { switchMode("login"); set("role", "ADMIN"); }}>
             <ShieldCheck size={20} />
             <strong>Admin</strong>
             <span>Manage projects, team &amp; tasks</span>
           </button>
-          <button type="button" className={mode === "signup" && form.role === "MEMBER" ? "active" : ""} onClick={() => { switchMode("signup"); set("role", "MEMBER"); }}>
+          <button type="button" className={form.role === "MEMBER" ? "active" : ""} onClick={() => { if (mode === "login") switchMode("login"); set("role", "MEMBER"); }}>
             <UserRound size={20} />
             <strong>Member</strong>
             <span>Track your assigned work</span>
@@ -802,10 +802,12 @@ function AuthScreen({ onAuth, initialResetToken }) {
             <LogIn size={15} />
             Login
           </button>
-          <button className={mode === "signup" ? "active" : ""} onClick={() => switchMode("signup")} type="button">
-            <UserRound size={15} />
-            Sign up
-          </button>
+          {form.role !== "ADMIN" && (
+            <button className={mode === "signup" ? "active" : ""} onClick={() => switchMode("signup")} type="button">
+              <UserRound size={15} />
+              Sign up
+            </button>
+          )}
         </div>
 
         <form onSubmit={submit}>
@@ -821,12 +823,14 @@ function AuthScreen({ onAuth, initialResetToken }) {
             {loading ? "Please wait…" : mode === "login" ? "Sign in" : "Create account"}
           </Button>
 
-          <p className="auth-switch">
-            {mode === "login" ? "Don't have an account?" : "Already have an account?"}
-            <button type="button" onClick={() => switchMode(mode === "login" ? "signup" : "login")}>
-              {mode === "login" ? "Sign up" : "Log in"}
-            </button>
-          </p>
+          {form.role !== "ADMIN" && (
+            <p className="auth-switch">
+              {mode === "login" ? "Don't have an account?" : "Already have an account?"}
+              <button type="button" onClick={() => switchMode(mode === "login" ? "signup" : "login")}>
+                {mode === "login" ? "Sign up" : "Log in"}
+              </button>
+            </p>
+          )}
           {mode === "login" && (
             <p className="auth-forgot">
               <button type="button" onClick={() => switchMode("forgot")}>
